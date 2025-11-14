@@ -27,6 +27,9 @@ class Bit:
         """
         return Bit(self or other)
 
+Bitx32 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
+Bitx5 = tuple[Bit,Bit,Bit,Bit,Bit]
+Bitx8 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
 
 class Byte:
     memory: list[Bit]

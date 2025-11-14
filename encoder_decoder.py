@@ -45,3 +45,26 @@ def encoder8x3(data_0:Bit, data_1:Bit, data_2:Bit, data_3:Bit, data_4:Bit, data_
     or_2 = g.or_gate(or_2_0, or_2_1, power)
 
     return (or_0, or_1, or_2)
+
+def decoder4x16(data_0:Bit, data_1:Bit, data_2:Bit, data_3:Bit, power:Bit = None) -> tuple[Bit,...]:
+    power = power if power is not None else Bit(True)
+
+    data3_not = g.not_gate(data_3, power)
+
+    dec3x8_0_out = decoder3x8(data_0, data_1, data_2, data3_not)
+    dec3x8_1_out = decoder3x8(data_0, data_1, data_2, data_3)
+
+    return dec3x8_0_out + dec3x8_1_out
+
+
+def decoder5x32(data_0:Bit, data_1:Bit, data_2:Bit, data_3:Bit, data_4:Bit, power:Bit = None) -> tuple[Bit,...]:
+    power = power if power is not None else Bit(True)
+
+    data4_not = g.not_gate(data_4, power)
+
+    dec4x16_0_out = decoder4x16(data_0, data_1, data_2, data_3, data4_not)
+
+    dec4x16_1_out = decoder4x16(data_0, data_1, data_2, data_3, data_4)
+
+    return dec4x16_0_out + dec4x16_1_out
+
