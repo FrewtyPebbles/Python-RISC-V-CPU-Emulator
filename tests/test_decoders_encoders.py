@@ -6,6 +6,8 @@ from encoder_decoder import (
     encoder8x3, one_hot_to_decimal
 )
 
+# Unit Tests created with assistance from AI to ensure correctness.
+
 # Utility: convert integer → tuple of Bits
 def int_to_bits(n, width):
     return tuple(Bit(bool((n >> i) & 1)) for i in range(width))
