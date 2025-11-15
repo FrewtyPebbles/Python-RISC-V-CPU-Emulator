@@ -10,7 +10,7 @@ class Bit:
     value:bool
     
     def __init__(self, value:bool = False):
-        self.value = value
+        self.value = bool(value)
 
     def __bool__(self) -> bool:
         return self.value
@@ -83,11 +83,11 @@ class Memory:
         if index < 0 or index >= self.size:
             raise IndexError("index out of memory bounds.")
         reversed_index:int = self.size - index
-        return self.memory[reversed_index // 8][index % 8]
+        return self.memory[(reversed_index // 8) - 1][index % 8]
 
     def __setitem__(self, index:int, value:bool):
         reversed_index:int = self.size - index
-        self.memory[reversed_index // 8][index % 8] = value
+        self.memory[(reversed_index // 8) - 1][index % 8] = value
 
     def __iter__(self):
         return self
@@ -102,3 +102,7 @@ class Memory:
         
     def __len__(self) -> int:
         return self.size
+    
+    def read_bits(self) -> tuple[Bit,...]:
+        return tuple(bit for bit in self)
+    
