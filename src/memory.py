@@ -1,6 +1,7 @@
 from __future__ import annotations
 from array import array
-from typing import Literal
+from typing import Iterable, Literal
+from utility import bin_to_dec, bin_to_hex, dec_to_hex
 
 class Bit:
     """
@@ -26,10 +27,24 @@ class Bit:
         Analagous to connecting two wires together.
         """
         return Bit(self or other)
+    
+    def to_hex(self) -> str:
+        return bin_to_hex(self.read_bits())
 
 Bitx32 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
+Bitx2 = tuple[Bit,Bit]
+Bitx3 = tuple[Bit,Bit,Bit]
+Bitx4 = tuple[Bit,Bit,Bit,Bit]
 Bitx5 = tuple[Bit,Bit,Bit,Bit,Bit]
+Bitx6 = tuple[Bit,Bit,Bit,Bit,Bit,Bit]
+Bitx7 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit]
 Bitx8 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
+Bitx9 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
+Bitx10 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
+Bitx11 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
+Bitx12 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
+Bitx13 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
+Bitx20 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
 
 class Byte:
     memory: list[Bit]
@@ -52,10 +67,22 @@ class Byte:
     def __len__(self) -> int:
         return self.size
     
+    def write_bits(self, bits:Iterable[Bit]):
+        assert len(bits) == len(self)
+        for b_n, bit in enumerate(bits):
+            self.memory[b_n].value = bit.value
+
+    def read_bits(self) -> Bitx8:
+        return tuple(bit for bit in self)
+    
+    def to_hex(self) -> str:
+        return bin_to_hex(self.read_bits())
+    
+    
 
 class Memory:
     """
-    Because this cpu emulator stores registers in little endian,
+    Because this cpu emulator stores data in little endian,
     this class stores in little endian and itterates in big endian.
     """
 
@@ -103,6 +130,19 @@ class Memory:
     def __len__(self) -> int:
         return self.size
     
+    def write_bits_little_endian(self, bits:Iterable[Bit]):
+        assert len(bits) == len(self)
+        for b_n, bit in enumerate(bits):
+            self.memory[b_n // 8][b_n % 8].value = bit.value
+
+    def write_bits(self, bits:Iterable[Bit]):
+        assert len(bits) == len(self)
+        for b_n, bit in enumerate(bits):
+            self[b_n].value = bit.value
+
     def read_bits(self) -> tuple[Bit,...]:
         return tuple(bit for bit in self)
+    
+    def to_hex(self) -> str:
+        return bin_to_hex(self.read_bits())
     

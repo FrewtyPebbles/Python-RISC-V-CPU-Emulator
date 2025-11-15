@@ -1,0 +1,158 @@
+from __future__ import annotations
+from dataclasses import dataclass
+from enum import Enum
+from memory import Bit, Bitx10, Bitx12, Bitx2, Bitx20, Bitx3, Bitx4, Bitx5, Bitx6, Bitx7, Bitx8
+from utility import (
+    bin_str_to_bits, hex_big_to_little_endian, bin_to_hex, dec_to_bin,
+    hex_to_bin
+)
+
+from abc import ABC, abstractmethod
+
+class TokenType(Enum):
+    INSTRUCTION = 0
+    LABEL = 1
+    DIRECTIVE = 2
+
+class Token:
+    """
+    The base Token class.
+
+    This contains logic for converting instructions into hex.
+    """
+    token_type:TokenType
+    @abstractmethod
+    def to_hex(self) -> str:
+        pass
+    
+    @staticmethod
+    def is_int_reg(name:str) -> bool:
+        try:
+            reg_num:int = int(name.lstrip("x"))
+            if 0 <= reg_num <= 31:
+                return True
+        except ValueError:
+            return False
+
+    @staticmethod
+    def reg_to_bin(name:str) -> Bitx5:
+        try:
+            reg_num:int = int(name.lstrip("x"))
+            if 0 <= reg_num <= 31:
+                return dec_to_bin(reg_num, 5)
+            else:
+                raise SyntaxError(f"{name} is not within the inclusive range of 0 to 31")
+        except ValueError:
+            raise SyntaxError(f"{name} is not a valid register")
+        
+@dataclass
+class InstructionData:
+    opcode:Bitx7 = None
+    funct3:Bitx3 = None
+    funct7:Bitx7 = None
+    imm_i_0_11:Bitx12 = None
+    imm_s_0_4:Bitx5 = None
+    imm_s_5_11:Bitx7 = None
+    imm_b_1_4:Bitx4 = None
+    imm_b_11:Bit = None # this is the 11th bit of the immediate
+    imm_b_5_10:Bitx6 = None
+    imm_b_12:Bit = None
+    imm_u_12_31:Bitx20 = None
+    imm_j_12_19:Bitx8 = None
+    imm_j_11:Bit = None
+    imm_j_1_10:Bitx10 = None
+    imm_j_20:Bit = None
+
+class InstructionType(Enum):
+    R = 0
+    I = 1
+    S = 2
+    B = 3
+    U = 4
+    J = 5
+
+    R_type_instructions:set[str] = {"add", "sub", "and", "or", "xor", "sll", "srl", "sra"}
+    I_type_instructions:set[str] = {"addi", "lw", "jalr"}
+    S_type_instructions:set[str] = {"sw"}
+    B_type_instructions:set[str] = {"beq", "bne"}
+    U_type_instructions:set[str] = {"lui", "auipc"}
+    J_type_instructions:set[str] = {"jal"}
+
+    @classmethod
+    def get_instruction_type(cls, instruction:str) -> InstructionType:
+        if instruction in cls.R_type_instructions:
+            return cls.R
+        if instruction in cls.I_type_instructions:
+            return cls.I
+        if instruction in cls.S_type_instructions:
+            return cls.S
+        if instruction in cls.B_type_instructions:
+            return cls.B
+        if instruction in cls.U_type_instructions:
+            return cls.U
+        if instruction in cls.J_type_instructions:
+            return cls.J
+        raise SyntaxError(f"instruction type not defined for {instruction}")
+
+InsTyp = InstructionType
+
+class InstructionToken(Token):
+    token_type = TokenType.INSTRUCTION
+    instruction_type:InstructionType
+    instruction:str
+    rs1:str
+    rs2:str
+    rd:str
+    immediate:str
+
+    def __init__(self, instruction:str = None, rs1:str = None, rs2:str = None, rd:str = None, immediate:str = None):
+        self.instruction = instruction
+        self.rs1 = rs1
+        self.rs2 = rs2
+        self.rd = rd
+        self.immediate = immediate
+        self.instruction_type = InstructionType.get_instruction_type(self.instruction)
+
+    def get_funct7(self) -> tuple[Bit,...]:
+        h7b = lambda s:hex_to_bin(s, 7)
+        match self.instruction:
+            case "add"|"xor"|"or"|"and"|"sll"|"srl"|"slt"|"sltu":
+                return h7b("00")
+            case "sub"|"sra":
+                return h7b("20")
+            case "mul"|"mulh"|"mulsu"|"mulu"|"div"|"divu"|"rem"|"remu":
+                return h7b("01")
+
+    def get_opcode(self) -> tuple[Bit,...]:
+        match self.instruction:
+            case "add"|"sub"|"xor"|"or"|"and"|"sll"|"srl"|"sra"|"slt"|"sltu"\
+                |"mul"|"mulh"|"mulsu"|"mulu"|"div"|"divu"|"rem"|"remu":
+                return bin_str_to_bits("0110011")
+            case "addi"|"xori"|"ori"|"andi"|"slli"|"srli"|"srai"|"slti"|"sltiu":
+                return bin_str_to_bits("0010011")
+            case "lb"|"lh"|"lw"|"lbu"|"lhu":
+                return bin_str_to_bits("0000011")
+            case "sb"|"sh"|"sw":
+                return bin_str_to_bits("0100011")
+            case "beq"|"bne"|"blt"|"bge"|"bltu"|"bgeu":
+                return bin_str_to_bits("1100011")
+            case "jal":
+                return bin_str_to_bits("1101111")
+            case "jalr":
+                return bin_str_to_bits("1100111")
+            case "lui":
+                return bin_str_to_bits("0110111")
+            case "auipc":
+                return bin_str_to_bits("0010111")
+            case "ecall"|"ebreak":
+                return bin_str_to_bits("1110011")
+
+        raise SyntaxError(f"instruction '{self.instruction}' does not have a specified opcode")
+    
+
+    def to_hex(self) -> str:
+        match self.instruction_type:
+            case InsTyp.R:
+                # no immediate
+                big_endian_code = tuple(*self.get_funct7(), *self.reg_to_bin(self.rs2), *self.reg_to_bin(self.rs1), *self.get_funct3(), *self.reg_to_bin(self.rd), *self.get_opcode())
+                return hex_big_to_little_endian(bin_to_hex(big_endian_code))
