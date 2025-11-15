@@ -1,4 +1,4 @@
-from memory import Bit
+from memory import Bit, Bitx32
 import gates as g
 
 def decoder2x4(data_0:Bit, data_1:Bit, power:Bit = None) -> tuple[Bit,Bit,Bit,Bit]:
@@ -57,7 +57,7 @@ def decoder4x16(data_0:Bit, data_1:Bit, data_2:Bit, data_3:Bit, power:Bit = None
     return dec3x8_0_out + dec3x8_1_out
 
 
-def decoder5x32(data_0:Bit, data_1:Bit, data_2:Bit, data_3:Bit, data_4:Bit, power:Bit = None) -> tuple[Bit,...]:
+def decoder5x32(data_0:Bit, data_1:Bit, data_2:Bit, data_3:Bit, data_4:Bit, power:Bit = None) -> Bitx32:
     power = power if power is not None else Bit(True)
 
     data4_not = g.not_gate(data_4, power)
@@ -68,3 +68,9 @@ def decoder5x32(data_0:Bit, data_1:Bit, data_2:Bit, data_3:Bit, data_4:Bit, powe
 
     return dec4x16_0_out + dec4x16_1_out
 
+def one_hot_to_decimal(one_hot:tuple[Bit,...]) -> int:
+    for b_n, bit in enumerate(one_hot, 1):
+        if bit:
+            return b_n
+        
+    return 0
