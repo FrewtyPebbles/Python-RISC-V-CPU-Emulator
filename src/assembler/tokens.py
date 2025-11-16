@@ -122,6 +122,26 @@ class InstructionToken(Token):
                 return h7b("20")
             case "mul"|"mulh"|"mulsu"|"mulu"|"div"|"divu"|"rem"|"remu":
                 return h7b("01")
+            
+    def get_funct3(self) -> tuple[Bit,...]:
+        h3b = lambda s:hex_to_bin(s, 3)
+        match self.instruction:
+            case "add"|"sub"|"addi"|"lb"|"sb"|"beq"|"jalr"|"jal"|"lui"|"auipc"|"ecall"|"ebreak"|"mul":
+                return h3b("0")
+            case "sll"|"slli"|"lh"|"sh"|"bne"|"mulh":
+                return h3b("1")
+            case "slt"|"slti"|"lw"|"sw"|"mulsu":
+                return h3b("2")
+            case "sltu"|"sltiu"|"mulu":
+                return h3b("3")
+            case "xor"|"xori"|"lbu"|"blt"|"div":
+                return h3b("4")
+            case "srl"|"sra"|"srli"|"srai"|"lhu"|"bge"|"divu":
+                return h3b("5")
+            case "or"|"ori"|"bltu"|"rem":
+                return h3b("6")
+            case "and"|"andi"|"bgeu"|"remu":
+                return h3b("7")
 
     def get_opcode(self) -> tuple[Bit,...]:
         match self.instruction:
@@ -155,4 +175,9 @@ class InstructionToken(Token):
             case InsTyp.R:
                 # no immediate
                 big_endian_code = tuple(*self.get_funct7(), *self.reg_to_bin(self.rs2), *self.reg_to_bin(self.rs1), *self.get_funct3(), *self.reg_to_bin(self.rd), *self.get_opcode())
+                return hex_big_to_little_endian(bin_to_hex(big_endian_code))
+            case InsTyp.I:
+                # imm[11:0], rs1, funct3, rd, opcode
+                imm = self.get_imm()
+                big_endian_code = tuple(*imm[0:12], *self.reg_to_bin(self.rs1), *self.get_funct3(), *self.reg_to_bin(self.rd), *self.get_opcode())
                 return hex_big_to_little_endian(bin_to_hex(big_endian_code))
