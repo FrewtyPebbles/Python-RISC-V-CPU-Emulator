@@ -3,13 +3,14 @@ This file contains the Datapath class
 This will contain a memory_unit, an adder, and a program counter
 The adder will increment the value held by the program counter, which contains the memory address of the instruction, which will be retrieved by the memory unit
 """
-from memory import Bit, Bitx32, Byte, Memory
+from memory import Bit, Bitx32, Bitx20, Bitx12, Byte, Memory
 from memory_unit import memory_unit
 from fpu import FPU32
-#Note to self: this will have to work with the clock as well
+from register_file import RegisterFile
 class Datapath:
   mu:memory_unit
   adder:FPU32
+  program_counter:Bitx32
   
   def __init__(self, memory_unit, fpu32):
     self.mu = memory_unit
@@ -20,47 +21,160 @@ class Datapath:
     return result
 
   def execute(self, instruction:str):
-    match instruction:
-      #arithmetic  
-      case "add": 
-        pass
-      case "sub":
-        pass
-      case "addi":
-        pass
-      #logical
-      case "and":
-        pass
-      case "or":
-        pass
-      case "xor":
-        pass
-      #shifts
-      case "sll":
-        pass
-      case "srl":
-        pass
-      case "sra":
-        pass
-      #memory
-      case "lw":
-        pass
-      case "sw":
-        pass
-      #control
-      case "beq":
-        pass
-      case "bne":
-        pass
-      case "jal":
-        pass
-      case "jair":
-        pass
+    match instruction.split():
       #immediate/utility
-      case "lui":
-        pass
-      case "auipc":
-        pass
+      case ["lui", input1, input2]:
+        """
+        input1 is a register
+        input2 is a 20-bit immediate value
+        This loads input2 into the first 20 bits of input1's storage and fills the lower 12 bits with 0s. 
+        """ 
+        if not (isinstance(input1, Bitx32) and isinstance(input2, Bitx20)):
+          raise TypeError("Invalid input type")
+      case ["auipc", input1, input2]:
+        """
+        input1 is a register
+        input2 is a 20-bit immediate value
+        This adds the 20-bit value to the program_counter and stores that in input1
+        """
+        if not (isinstance(input1, Bitx32) and isinstance(input2, Bitx20)):
+          raise TypeError("Invalid input type") 
+      #memory
+      case ["lw", input1, input2]:
+        """
+        input1 is a register
+        input2 is an offset of a register, formatted offset(register)
+        This loads from offset+register into input1
+        """
+        if not (isinstance(input1, Bitx32) and isinstance(input2, Bitx32)):
+          raise TypeError("Invalid input type") 
+      case ["sw", input1, input2]:
+        """
+        input1 is a register
+        input2 is an offset of a register, formatted offset(register)
+        This stores a word from input1 into offset+register
+        """
+        if not (isinstance(input1, Bitx32) and isinstance(input2, Bitx32)):
+          raise TypeError("Invalid input type") #we need a good way to represent the offset(register), perhaps a 2-tuple
+      #control
+      case ["jal", input1, input2]:
+        """
+        input1 is a register
+        input2 is a label
+        The instruction at program_counter + 4 is stored in input1, and we jump to the label in input2
+        """
+        if not (isinstance(input1, Bitx32) and isinstance(input2, Bitx32)):
+          raise TypeError("Invalid input type")   #should input2 be a string?
+      case ["jalr", input1, input2]:
+        """
+        input1 is a register
+        input2 is an offset of a register, formatted offset(register)
+        This stores the address of the instruction at program_counter + 4 in input1, and we jump to offset+register from input2
+        """
+        if not (isinstance(input1, Bitx32) and isinstance(input2, Bitx32)):
+          raise TypeError("Invalid input type") 
+      case ["beq", input1, input2, input3]:
+        """
+        input1 is a register
+        input2 is a register
+        input3 is a label
+        If input1 == input2, jump to label
+        """
+        if not (isinstance(input1, Bitx32) and isinstance(input2, Bitx32) and isinstance(input3, Bitx32)):
+          raise TypeError("Invalid input type") 
+      case ["bne", input1, input2, input3]:
+        """
+        input1 is a register
+        input2 is a register
+        input3 is a label
+        If input1 != input2, jump to label
+        """
+        if not (isinstance(input1, Bitx32) and isinstance(input2, Bitx32) and isinstance(input3, Bitx32)):
+          raise TypeError("Invalid input type")
+      #arithmetic  
+      case ["add", input1, input2, input3]:
+        """
+        input1 is a register
+        input2 is a register
+        input3 is a register
+        This performs input1 = input2 + input3
+        """ 
+        if not (isinstance(input1, Bitx32) and isinstance(input2, Bitx32) and isinstance(input3, Bitx32)):
+          raise TypeError("Invalid input type")
+      case ["sub", input1, input2, input3]:
+        """
+        input1 is a register
+        input2 is a register
+        input3 is a register
+        This performs input1 = input2 - input3
+        """ 
+        if not (isinstance(input1, Bitx32) and isinstance(input2, Bitx32) and isinstance(input3, Bitx32)):
+          raise TypeError("Invalid input type")
+      case ["addi", input1, input2, input3]:
+        """
+        input1 is a register
+        input2 is a register
+        input3 is a 12-bit immediate value
+        This performs input1 = input2 + input3
+        """ 
+        if not (isinstance(input1, Bitx32) and isinstance(input2, Bitx32) and isinstance(input3, Bitx12)):
+          raise TypeError("Invalid input type")
+      #logical
+      case ["and", input1, input2, input3]:
+        """
+        input1 is a register
+        input2 is a register
+        input3 is a register
+        This performs input1 = input2 AND input3
+        """ 
+        if not (isinstance(input1, Bitx32) and isinstance(input2, Bitx32) and isinstance(input3, Bitx32)):
+          raise TypeError("Invalid input type")
+      case ["or", input1, input2, input3]:
+        """
+        input1 is a register
+        input2 is a register
+        input3 is a register
+        This performs input1 = input2 OR input3
+        """ 
+        if not (isinstance(input1, Bitx32) and isinstance(input2, Bitx32) and isinstance(input3, Bitx32)):
+          raise TypeError("Invalid input type")
+      case ["xor", input1, input2, input3]:
+        """
+        input1 is a register
+        input2 is a register
+        input3 is a register
+        This performs input1 = input2 XOR input3
+        """ 
+        if not (isinstance(input1, Bitx32) and isinstance(input2, Bitx32) and isinstance(input3, Bitx32)):
+          raise TypeError("Invalid input type")
+      #shifts
+      case ["sll", input1, input2, input3]:
+        """
+        input1 is a register
+        input2 is a register
+        input3 is a register
+        This shifts the contents of input2 to the left by the amount specified in input3, and stores the result in input1
+        """ 
+        if not (isinstance(input1, Bitx32) and isinstance(input2, Bitx32) and isinstance(input3, Bitx32)):
+          raise TypeError("Invalid input type")
+      case ["srl", input1, input2, input3]:
+        """
+        input1 is a register
+        input2 is a register
+        input3 is a register
+        This shifts the contents of input2 to the right by the amount specified in input3, and stores the result in input1
+        """ 
+        if not (isinstance(input1, Bitx32) and isinstance(input2, Bitx32) and isinstance(input3, Bitx32)):
+          raise TypeError("Invalid input type")
+      case ["sra", input1, input2, input3]:
+        """
+        input1 is a register
+        input2 is a register
+        input3 is a register
+        This shifts the contents of input2 to the right by the amount specified in input3, and stores the result in input1
+        """ 
+        if not (isinstance(input1, Bitx32) and isinstance(input2, Bitx32) and isinstance(input3, Bitx32)):
+          raise TypeError("Invalid input type")
       #default case
       case _:
         raise ValueError("Instruction not found")
