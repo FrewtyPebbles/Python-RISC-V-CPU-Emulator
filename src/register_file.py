@@ -20,6 +20,7 @@ class RegisterFile:
         read1 = self.registers[read_reg_1_pos].read_bits()
         read2 = self.registers[read_reg_2_pos].read_bits()
 
+
         if control_reg_write.value and write_reg_pos != 0:
             write_reg = self.registers[write_reg_pos]
             write_reg.write_bits(write_data)

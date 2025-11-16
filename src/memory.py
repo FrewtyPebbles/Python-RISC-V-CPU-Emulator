@@ -96,16 +96,9 @@ class Memory:
     size:int
     itterator_index:int
 
-    def __init__(self, size:int = None, memory:list[Byte] = None):
-        if size == None and memory == None:
-            raise MemoryError("either size or memory must be supplied")
-        
-        self.size = len(memory) * 8 if size == None else size
-
-        if memory != None and len(memory) != self.size // 8:
-            raise MemoryError("memory's size does not match specified size")
-        
-        self.memory = memory if memory else [Byte() for _ in range(self.size // 8)]
+    def __init__(self, size:int):
+        self.size = size
+        self.memory = [Byte() for _ in range(size // 8)]
         
         self.itterator_index = 0
 
@@ -115,12 +108,10 @@ class Memory:
         """
         if index < 0 or index >= self.size:
             raise IndexError("index out of memory bounds.")
-        reversed_index:int = self.size - index
-        return self.memory[(reversed_index // 8) - 1][index % 8]
+        return self.memory[index // 8][index % 8]
 
     def __setitem__(self, index:int, value:bool):
-        reversed_index:int = self.size - index
-        self.memory[(reversed_index // 8) - 1][index % 8] = value
+        self.memory[index // 8][index % 8] = bool(value)
 
     def __iter__(self):
         return self
@@ -131,15 +122,11 @@ class Memory:
             self.itterator_index += 1
             return value
         else:
+            self.itterator_index = 0
             raise StopIteration
         
     def __len__(self) -> int:
         return self.size
-    
-    def write_bits_little_endian(self, bits:Iterable[Bit]):
-        assert len(bits) == len(self)
-        for b_n, bit in enumerate(bits):
-            self.memory[b_n // 8][b_n % 8].value = bit.value
 
     def write_bits(self, bits:Iterable[Bit]):
         assert len(bits) == len(self)
@@ -159,38 +146,20 @@ class Memory:
 ## UTILITY FUNCTIONS
 
 
-def bin_to_dec(binary: Iterable[Bit]) -> int:
-    value:int = 0
-    n = len(binary)
-
-    for i in range(n):
-        bit_val = 1 if binary[i] else 0
-        value += bit_val * (1 << (n - 1 - i))
-
-    return value
-
-def dec_to_bin(value: int, memory_size:int) -> tuple[Bit,...]:
+def dec_to_bin(value: int, size: int) -> tuple[Bit, ...]:
     if value < 0:
-        raise ValueError("Only non-negative integers supported for unsigned binary.")
+        raise ValueError("Only non-negative integers supported.")
+    bits = []
+    for _ in range(size):
+        bits.append(Bit(value & 1))
+        value >>= 1
+    return tuple(bits)  # LSB first
 
-    bool_list = []
-    if value == 0:
-        bool_list.append(Bit(False))
-
-    # build the binary representation using modulo and division
-    while value > 0:
-        bool_list.append(Bit(value % 2))  # True if remainder is 1, False if 0
-        value //= 2
-
-    # reverse to get MSB first
-    bool_list = bool_list[::-1]
-
-    # pad to requested number of bits
-    pad_len = memory_size - len(bool_list)
-    if pad_len > 0:
-        bool_list = [Bit(False)] * pad_len + bool_list
-
-    return tuple(bool_list)
+def bin_to_dec(bits: Iterable[Bit]) -> int:
+    value = 0
+    for i, b in enumerate(bits):
+        value += int(b) << i
+    return value
 
 def dec_to_hex(num:int):
     return hex(num)[2:].upper()

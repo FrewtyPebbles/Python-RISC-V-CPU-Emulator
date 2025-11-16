@@ -9,21 +9,21 @@ class Register(Memory):
 
 class Register8bit(Register):
     def __init__(self, memory:list[Byte] = None):
-        super().__init__(8, memory)
+        super().__init__(8)
 
 class Register16bit(Register):
     def __init__(self, memory:list[Byte] = None):
-        super().__init__(16, memory)
+        super().__init__(16)
 
 class Register32bit(Register):
     def __init__(self, memory:list[Byte] = None):
-        super().__init__(32, memory)
+        super().__init__(32)
 
 class FloatRegister32bit(Register32bit):
     EXPONENT_BIAS:Literal[127] = 127
 
     def __init__(self, memory:list[Byte] = None):
-        super().__init__(32, memory)
+        super().__init__(32)
 
 
     @property
