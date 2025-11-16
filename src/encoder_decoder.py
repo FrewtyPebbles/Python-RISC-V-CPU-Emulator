@@ -18,15 +18,12 @@ def decoder2x4(data_0:Bit, data_1:Bit, power:Bit = None) -> tuple[Bit,Bit,Bit,Bi
 def decoder3x8(data_0: Bit, data_1: Bit, data_2: Bit, power: Bit = None) -> tuple[Bit, ...]:
     power = power if power is not None else Bit(True)
 
-    d2_not = g.not_gate(data_2, Bit(True))  # invert data_2 only, not power
+    d2_not = g.not_gate(data_2, power)  # invert data_2 only, not power
     dec2x4_0_out = decoder2x4(data_0, data_1, d2_not)
     dec2x4_1_out = decoder2x4(data_0, data_1, data_2)
 
     # AND with global power
-    dec2x4_0_out = tuple(g.and_gate(bit, power) for bit in dec2x4_0_out)
-    dec2x4_1_out = tuple(g.and_gate(bit, power) for bit in dec2x4_1_out)
-
-    return dec2x4_0_out + dec2x4_1_out
+    return tuple(g.and_gate(bit, power) for bit in (dec2x4_0_out + dec2x4_1_out))
 
 
 def encoder8x3(data_0:Bit, data_1:Bit, data_2:Bit, data_3:Bit, data_4:Bit, data_5:Bit, data_6:Bit, data_7:Bit, power:Bit = None) -> tuple[Bit,Bit,Bit]:
@@ -51,41 +48,30 @@ def encoder8x3(data_0:Bit, data_1:Bit, data_2:Bit, data_3:Bit, data_4:Bit, data_
 def decoder4x16(data_0: Bit, data_1: Bit, data_2: Bit, data_3: Bit, power: Bit = None) -> tuple[Bit, ...]:
     power = power if power is not None else Bit(True)
 
-    # first 8 outputs enabled only if data_3 == 0
-    dec3x8_0_out = decoder3x8(data_0, data_1, data_2)
-    dec3x8_0_out = tuple(g.and_gate(bit, g.not_gate(data_3, Bit(True))) for bit in dec3x8_0_out)
+    d3_not = g.not_gate(data_3, power)
 
-    # last 8 outputs enabled only if data_3 == 1
-    dec3x8_1_out = decoder3x8(data_0, data_1, data_2)
-    dec3x8_1_out = tuple(g.and_gate(bit, data_3) for bit in dec3x8_1_out)
+    lower = decoder3x8(data_0, data_1, data_2, d3_not)
+    upper = decoder3x8(data_0, data_1, data_2, data_3)
 
-    # AND global power
-    dec3x8_0_out = tuple(g.and_gate(bit, power) for bit in dec3x8_0_out)
-    dec3x8_1_out = tuple(g.and_gate(bit, power) for bit in dec3x8_1_out)
-
-    return dec3x8_0_out + dec3x8_1_out
+    return tuple(g.and_gate(b, power) for b in (lower + upper))
 
 
 
 def decoder5x32(data_0: Bit, data_1: Bit, data_2: Bit, data_3: Bit, data_4: Bit, power: Bit = None) -> Bitx32:
     power = power if power is not None else Bit(True)
 
-    dec4x16_0_out = decoder4x16(data_0, data_1, data_2, data_3)
-    dec4x16_0_out = tuple(g.and_gate(bit, g.not_gate(data_4, Bit(True))) for bit in dec4x16_0_out)
+    d4_not = g.not_gate(data_4, power)
 
-    dec4x16_1_out = decoder4x16(data_0, data_1, data_2, data_3)
-    dec4x16_1_out = tuple(g.and_gate(bit, data_4) for bit in dec4x16_1_out)
+    lower = decoder4x16(data_0, data_1, data_2, data_3, d4_not)
+    upper = decoder4x16(data_0, data_1, data_2, data_3, data_4)
 
-    dec4x16_0_out = tuple(g.and_gate(bit, power) for bit in dec4x16_0_out)
-    dec4x16_1_out = tuple(g.and_gate(bit, power) for bit in dec4x16_1_out)
-
-    return dec4x16_0_out + dec4x16_1_out
+    return tuple(g.and_gate(bit, power) for bit in (lower + upper))
 
 
 
 def one_hot_to_decimal(one_hot:tuple[Bit,...]) -> int:
-    for b_n, bit in enumerate(one_hot, 1):
+    for b_n, bit in enumerate(one_hot):
         if bit:
             return b_n
         
-    return 0
+    return -1

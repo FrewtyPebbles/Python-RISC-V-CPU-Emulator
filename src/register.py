@@ -1,14 +1,11 @@
 from typing import Literal
-from memory import Memory, Byte, Bit
-import utility
+from memory import Memory, Byte, Bit, bin_to_dec
 
 class Register(Memory):
     """
     Base Register class for shared methods
     """
     
-    def __int__(self) -> int:
-        return utility.binary_to_integer(self.exponent_bits, True)
 
 class Register8bit(Register):
     def __init__(self, memory:list[Byte] = None):
@@ -27,6 +24,7 @@ class FloatRegister32bit(Register32bit):
 
     def __init__(self, memory:list[Byte] = None):
         super().__init__(32, memory)
+
 
     @property
     def sign_bit(self) -> Bit:
@@ -50,7 +48,7 @@ class FloatRegister32bit(Register32bit):
         return sum
     
     def __float__(self):
-        exponent:float = float(utility.bin_to_dec(self.exponent_bits, True))
+        exponent:float = float(bin_to_dec(self.exponent_bits, True))
         fraction:float = self.fraction
         return (-1.0 if self.sign_bit else 1.0) * (1.0 + fraction) * pow(2.0, exponent - self.EXPONENT_BIAS)
 

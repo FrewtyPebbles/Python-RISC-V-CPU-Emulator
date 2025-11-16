@@ -1,10 +1,10 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
-from memory import Bit, Bitx10, Bitx12, Bitx2, Bitx20, Bitx3, Bitx4, Bitx5, Bitx6, Bitx7, Bitx8
-from utility import (
+from memory import (
+    Bit, Bitx10, Bitx12, Bitx2, Bitx20, Bitx3, Bitx4, Bitx5, Bitx6, Bitx7, Bitx8,
     bin_str_to_bits, hex_big_to_little_endian, bin_to_hex, dec_to_bin,
-    hex_to_bin
+    hex_to_bin,
 )
 
 from abc import ABC, abstractmethod
@@ -63,6 +63,13 @@ class InstructionData:
     imm_j_1_10:Bitx10 = None
     imm_j_20:Bit = None
 
+R_type_instructions:set[str] = {"add", "sub", "and", "or", "xor", "sll", "srl", "sra"}
+I_type_instructions:set[str] = {"addi", "lw", "jalr"}
+S_type_instructions:set[str] = {"sw"}
+B_type_instructions:set[str] = {"beq", "bne"}
+U_type_instructions:set[str] = {"lui", "auipc"}
+J_type_instructions:set[str] = {"jal"}
+
 class InstructionType(Enum):
     R = 0
     I = 1
@@ -71,26 +78,19 @@ class InstructionType(Enum):
     U = 4
     J = 5
 
-    R_type_instructions:set[str] = {"add", "sub", "and", "or", "xor", "sll", "srl", "sra"}
-    I_type_instructions:set[str] = {"addi", "lw", "jalr"}
-    S_type_instructions:set[str] = {"sw"}
-    B_type_instructions:set[str] = {"beq", "bne"}
-    U_type_instructions:set[str] = {"lui", "auipc"}
-    J_type_instructions:set[str] = {"jal"}
-
     @classmethod
     def get_instruction_type(cls, instruction:str) -> InstructionType:
-        if instruction in cls.R_type_instructions:
+        if instruction in R_type_instructions:
             return cls.R
-        if instruction in cls.I_type_instructions:
+        if instruction in I_type_instructions:
             return cls.I
-        if instruction in cls.S_type_instructions:
+        if instruction in S_type_instructions:
             return cls.S
-        if instruction in cls.B_type_instructions:
+        if instruction in B_type_instructions:
             return cls.B
-        if instruction in cls.U_type_instructions:
+        if instruction in U_type_instructions:
             return cls.U
-        if instruction in cls.J_type_instructions:
+        if instruction in J_type_instructions:
             return cls.J
         raise SyntaxError(f"instruction type not defined for {instruction}")
 
@@ -105,7 +105,7 @@ class InstructionToken(Token):
     rd:str
     immediate:str
 
-    def __init__(self, instruction:str = None, rs1:str = None, rs2:str = None, rd:str = None, immediate:str = None):
+    def __init__(self, instruction:str = None, rd:str = None, rs1:str = None, rs2:str = None, immediate:str = None):
         self.instruction = instruction
         self.rs1 = rs1
         self.rs2 = rs2
