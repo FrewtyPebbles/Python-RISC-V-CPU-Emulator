@@ -213,8 +213,3 @@ def is_int(s:str) -> bool:
     
 def bin_str_to_bits(binary:str) -> tuple[Bit,...]:
     return tuple(Bit(True if bit == "1" else False) for bit in binary)
-
-def dec_to_one_hot(dec:int, length:int) -> tuple[Bit,...]:
-    bits:tuple[Bit,...] = tuple(Bit(0) for _ in range(length))
-    bits[dec-1].value = True
-    return bits
