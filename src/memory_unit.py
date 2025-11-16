@@ -34,7 +34,7 @@ class MemoryUnit:
       "auipc"    
   ]
 
-  def getInstruction(self, address:Bitx32) -> str:
+  def get_instruction(self, address:Bitx32) -> str:
     if address not in self.instructions:
       raise IndexError("Address not found")
     return self.instructions[one_hot_to_decimal(address)]
