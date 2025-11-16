@@ -1,5 +1,5 @@
 import pytest
-from assembler.tokens import InstructionToken
+from assembler.instructions import InstructionToken
 
 R_INSTRUCTIONS:list[str] = [
     "add", "sub", "and", "or", "xor", "sll", "srl", "sra"

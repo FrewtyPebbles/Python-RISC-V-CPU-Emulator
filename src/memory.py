@@ -182,6 +182,17 @@ def hex_to_bin(hex_str:str, bit_length:int) -> tuple[Bit,...]:
     
     return bits
 
+def octal_to_bin(octal_str: str, bit_length:int) -> tuple[Bit, ...]:
+    if any(c not in '01234567' for c in octal_str):
+        raise ValueError(f"Invalid octal digit in '{octal_str}'")
+
+    value = int(octal_str, 8)
+
+    if value >= (1 << bit_length):
+        raise ValueError(f"Octal value {octal_str} = {value} exceeds {bit_length} bits")
+
+    return tuple(Bit((value >> i) & 1) for i in range(bit_length))
+
 def bin_big_to_little_endian(bits:tuple[Bit,...]) -> tuple[Bit,...]:
     length:int = len(bits)
     ret_bits:list[Bit] = []

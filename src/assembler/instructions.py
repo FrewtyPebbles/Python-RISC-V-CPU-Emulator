@@ -2,9 +2,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from memory import (
-    Bit, Bitx10, Bitx12, Bitx2, Bitx20, Bitx3, Bitx4, Bitx5, Bitx6, Bitx7, Bitx8,
+    Bit, Bitx10, Bitx12, Bitx2, Bitx20, Bitx3, Bitx32, Bitx4, Bitx5, Bitx6, Bitx7, Bitx8,
     bin_str_to_bits, hex_big_to_little_endian, bin_to_hex, dec_to_bin,
-    hex_to_bin,
+    hex_to_bin, octal_to_bin,
 )
 
 from abc import ABC, abstractmethod
@@ -96,6 +96,27 @@ class InstructionType(Enum):
 
 InsTyp = InstructionType
 
+class LabelToken(Token):
+    token_type = TokenType.LABEL
+    name:str
+    address:Bitx32
+    label_lookup:dict[str, LabelToken] = {}
+
+    def __init__(self, name:str, address:Bitx32):
+        self.name = name
+        self.address = address
+
+    @classmethod
+    def clear_label_lookup(cls):
+        cls.label_lookup = {}
+    
+    @classmethod
+    def get_label(cls, label:str) -> LabelToken:
+        if label not in cls.label_lookup:
+            raise SyntaxError(f"Reference to non-existant label {label} found")
+        return cls.label_lookup[label]
+
+
 class InstructionToken(Token):
     token_type = TokenType.INSTRUCTION
     instruction_type:InstructionType
@@ -113,7 +134,7 @@ class InstructionToken(Token):
         self.immediate = immediate
         self.instruction_type = InstructionType.get_instruction_type(self.instruction)
 
-    def get_funct7(self) -> tuple[Bit,...]:
+    def get_funct7(self) -> Bitx7:
         h7b = lambda s:hex_to_bin(s, 7)
         match self.instruction:
             case "add"|"xor"|"or"|"and"|"sll"|"srl"|"slt"|"sltu":
@@ -123,7 +144,7 @@ class InstructionToken(Token):
             case "mul"|"mulh"|"mulsu"|"mulu"|"div"|"divu"|"rem"|"remu":
                 return h7b("01")
             
-    def get_funct3(self) -> tuple[Bit,...]:
+    def get_funct3(self) -> Bitx3:
         h3b = lambda s:hex_to_bin(s, 3)
         match self.instruction:
             case "add"|"sub"|"addi"|"lb"|"sb"|"beq"|"jalr"|"jal"|"lui"|"auipc"|"ecall"|"ebreak"|"mul":
@@ -143,7 +164,7 @@ class InstructionToken(Token):
             case "and"|"andi"|"bgeu"|"remu":
                 return h3b("7")
 
-    def get_opcode(self) -> tuple[Bit,...]:
+    def get_opcode(self) -> Bitx7:
         match self.instruction:
             case "add"|"sub"|"xor"|"or"|"and"|"sll"|"srl"|"sra"|"slt"|"sltu"\
                 |"mul"|"mulh"|"mulsu"|"mulu"|"div"|"divu"|"rem"|"remu":
@@ -169,9 +190,31 @@ class InstructionToken(Token):
 
         raise SyntaxError(f"instruction '{self.instruction}' does not have a specified opcode")
     
-    def get_imm(self) -> tuple[Bit,...]:
-        # TODO
-        pass
+    def get_imm(self, octal_enabled:bool = True) -> tuple[Bit,...]:
+        if self.instruction_type == InsTyp.R:
+            return None
+        
+        length = (12, 12, 12, 20, 20)[self.instruction_type.value]
+
+        if self.immediate == None:
+            return bin_str_to_bits("0"*length)
+        
+        # parse the immediate string into binary
+        lead:str = self.immediate[:2].lower()
+        if lead == "0x":
+            ## Hex
+            return hex_to_bin(self.immediate, length)
+        elif lead[0] == "0" and octal_enabled:
+            ## Octal
+            return octal_to_bin(self.immediate, length)
+        elif lead[0] == "0":
+            ## Not octal because disabled so it is decimal
+            zeros_stripped = self.immediate.lstrip("0")
+            return dec_to_bin(int(zeros_stripped), length)
+        elif lead[1].isalpha():
+            ## Label
+            return LabelToken.get_label(self.immediate).address
+            
 
     def to_hex(self) -> str:
         match self.instruction_type:
