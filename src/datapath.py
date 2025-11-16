@@ -15,8 +15,8 @@ class Datapath:
     self.mu = memory_unit
     self.adder = fpu32
 
-  def getInstruction(self, address:Bitx32)->str:
-    result = self.mu.getInstruction(address)
+  def get_instruction(self, address:Bitx32)->str:
+    result = self.mu.get_instruction(address)
     return result
 
   def execute(self, instruction:str):
