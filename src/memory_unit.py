@@ -4,23 +4,22 @@ It contains instructions stored in read-only memory, which it knows by address
 It takes in an address and outputs an instruction
 """
 
-from memory import Bit, Byte, Memory
+from memory import Bit, Byte, Memory, bin_str_to_bits
 
 Bits = Tuple[Bit, 32]
 
 class MemoryUnit:
-  instructions:dict = 
-    {
+  instructions:list[str] =  [
       #arithmetic
-      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0)): "add",
-      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1)): "sub",
-      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(0)): "addi",
+      "add",
+      "sub",
+      "addi",
       #logical
-      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(1)): "and",
-      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(0),Bit(0)): "or",
-      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(0),Bit(1)): "xor",
+      "and",
+      "or",
+      "xor",
       #shifts
-      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(1),Bit(0)): "sll",
+     "sll",
       Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(1),Bit(1)): "srl",
       Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(0),Bit(0),Bit(0)): "sra",
       #memory
@@ -34,7 +33,7 @@ class MemoryUnit:
       #immediate/utility
       Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(1),Bit(1),Bit(1)): "lui",
       Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(0),Bit(0),Bit(0),Bit(0)): "auipc"    
-    }
+  ]
 
   def getInstruction(self, address:Bits) -> string:
     if address not in self.instructions:
