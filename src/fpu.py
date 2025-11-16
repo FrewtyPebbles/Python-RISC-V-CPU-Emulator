@@ -1,529 +1,509 @@
 from __future__ import annotations
 from typing import Tuple, List, Dict
 
-from memory import Bit  # your Bit class
-import gates as g       # your gate primitives
+from memory import Bit
+import gates as g
 
-ZERO = Bit(False)
-ONE  = Bit(True)
+Bits = Tuple[Bit, ...]
 
-def xor_gate(a: Bit, b: Bit) -> Bit:
-    # XOR = (a OR b) AND ~(a AND b)
-    a_or_b = g.or_gate(a, b)
-    a_and_b = g.and_gate(a, b)
-    not_a_and_b = g.not_gate(a_and_b)
-    return g.and_gate(a_or_b, not_a_and_b)
 
-def and3(a: Bit, b: Bit, c: Bit) -> Bit:
-    return g.and_gate(g.and_gate(a, b), c)
+class FPU32:
+    ZERO = Bit(False)
+    ONE  = Bit(True)
 
-def or3(a: Bit, b: Bit, c: Bit) -> Bit:
-    return g.or_gate(g.or_gate(a, b), c)
+    EXP_BITS  = 8
+    FRAC_BITS = 23
+    MANT_BITS = 24  # includes hidden bit
+    GRS_BITS  = 3
+    EXT_BITS  = MANT_BITS + GRS_BITS  # 27
 
-def zeros(n: int) -> Tuple[Bit, ...]:
-    return tuple(ZERO for _ in range(n))
+    # 127 = 0b01111111 (MSB-first)
+    BIAS_BITS = (Bit(False), Bit(True), Bit(True), Bit(True), Bit(True), Bit(True), Bit(True), Bit(True))
 
-def ones(n: int) -> Tuple[Bit, ...]:
-    return tuple(ONE for _ in range(n))
+    EXP_ALL_ONES  = (Bit(True),)  * EXP_BITS
+    EXP_ALL_ZEROS = (Bit(False),) * EXP_BITS
 
-def one_hot_lsb(n: int) -> Tuple[Bit, ...]:
-    # 00...001  (MSB-first)
-    return tuple(ZERO for _ in range(n-1)) + (ONE,)
+    def unpack_f32(self, bits32: Bits) -> Tuple[Bit, Bits, Bits, str]:
+        """Return (sign, exp8, frac23, klass: 'zero'|'subnormal'|'normal'|'inf'|'nan')."""
+        assert len(bits32) == 32
+        s = bits32[0]
+        e = bits32[1:1 + self.EXP_BITS]
+        f = bits32[1 + self.EXP_BITS:32]
 
-def bits_equal(a: Tuple[Bit, ...], b: Tuple[Bit, ...]) -> bool:
-    neq = ZERO
-    for i in range(len(a)):
-        neq = g.or_gate(neq, xor_gate(a[i], b[i]))
-    return not bool(neq)
+        exp_all_zero = self._bits_all_zero(e)
+        exp_all_one  = self._bits_all_zero(tuple(g.not_gate(b) for b in e))
+        frac_zero    = self._bits_all_zero(f)
 
-def bits_all_zero(a: Tuple[Bit, ...]) -> bool:
-    acc = ZERO
-    for b in a:
-        acc = g.or_gate(acc, b)
-    return not bool(acc)
+        if exp_all_one:
+            klass = "inf" if frac_zero else "nan"
+        elif exp_all_zero:
+            klass = "zero" if frac_zero else "subnormal"
+        else:
+            klass = "normal"
+        return s, e, f, klass
 
-def vec_or(a: Tuple[Bit, ...]) -> Bit:
-    acc = ZERO
-    for b in a:
-        acc = g.or_gate(acc, b)
-    return acc
+    def pack_f32(self, sign: Bit, exp8: Bits, frac23: Bits) -> Bits:
+        assert len(exp8) == self.EXP_BITS and len(frac23) == self.FRAC_BITS
+        return (sign,) + exp8 + frac23
 
-def unsigned_less_than(a: Tuple[Bit, ...], b: Tuple[Bit, ...]) -> bool:
-    # Lexicographic MSB-first compare
-    n = len(a)
-    for i in range(n):
-        ai, bi = bool(a[i]), bool(b[i])
-        if ai != bi:
-            return (not ai) and bi
-    return False
+    def add(self, a_bits: Bits, b_bits: Bits) -> Dict[str, object]:
+        return self._addsub_core(a_bits, b_bits, subtract=False)
 
-def add_unsigned(a: Tuple[Bit, ...], b: Tuple[Bit, ...], cin: Bit = ZERO) -> Tuple[Tuple[Bit, ...], Bit]:
-    assert len(a) == len(b)
-    n = len(a)
-    s: List[Bit] = [ZERO] * n
-    carry = cin
-    for i in range(n - 1, -1, -1):  # LSB -> MSB
-        axb = xor_gate(a[i], b[i])
-        sm = xor_gate(axb, carry)
-        ab  = g.and_gate(a[i], b[i])
-        cax = g.and_gate(carry, axb)
-        cout = g.or_gate(ab, cax)
-        s[i] = sm
-        carry = cout
-    return tuple(s), carry
+    def sub(self, a_bits: Bits, b_bits: Bits) -> Dict[str, object]:
+        return self._addsub_core(a_bits, b_bits, subtract=True)
 
-def not_vec(a: Tuple[Bit, ...]) -> Tuple[Bit, ...]:
-    return tuple(g.not_gate(x) for x in a)
+    def mul(self, a_bits: Bits, b_bits: Bits) -> Dict[str, object]:
+        trace: List[str] = []
 
-def inc_unsigned(a: Tuple[Bit, ...]) -> Tuple[Tuple[Bit, ...], Bit]:
-    return add_unsigned(a, one_hot_lsb(len(a)))
+        sA, eA, fA, kA = self.unpack_f32(a_bits)
+        sB, eB, fB, kB = self.unpack_f32(b_bits)
 
-def dec_unsigned(a: Tuple[Bit, ...]) -> Tuple[Tuple[Bit, ...], Bit]:
-    inv = not_vec(one_hot_lsb(len(a)))  # 11..110
-    return add_unsigned(a, inv, ONE)    # a + (111..110) == a - 1
+        # NaN
+        if kA == "nan" or kB == "nan":
+            trace.append("SPECIAL: NaN operand → NaN")
+            return {"res_bits": self._make_qnan(),
+                    "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
+                    "trace": trace}
 
-def sub_unsigned(a: Tuple[Bit, ...], b: Tuple[Bit, ...]) -> Tuple[Tuple[Bit, ...], Bit]:
-    # a - b = a + (~b + 1)
-    nb = not_vec(b)
-    nb_plus_1, _ = inc_unsigned(nb)
-    s, carry = add_unsigned(a, nb_plus_1)
-    borrow = g.not_gate(carry)  # carry==1 ⇒ no borrow
-    return s, borrow
+        # INF / zero
+        if kA == "inf" or kB == "inf":
+            if kA == "zero" or kB == "zero":
+                trace.append("SPECIAL: 0 · ∞ → invalid")
+                return {"res_bits": self._make_qnan(),
+                        "flags": {"overflow": False, "underflow": False, "invalid": True, "inexact": False, "divide_by_zero": False},
+                        "trace": trace}
+            s = g.xor_gate(sA, sB)
+            trace.append("SPECIAL: finite · ∞ → ∞")
+            return {"res_bits": self.pack_f32(s, self.EXP_ALL_ONES, self._zeros(self.FRAC_BITS)),
+                    "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
+                    "trace": trace}
 
-def shl_logical(a: Tuple[Bit, ...], steps: int = 1) -> Tuple[Bit, ...]:
-    out = list(a)
-    for _ in range(steps):
-        for i in range(len(out) - 1):
-            out[i] = out[i + 1]
-        out[-1] = ZERO
-    return tuple(out)
+        if kA == "zero" or kB == "zero":
+            s = g.xor_gate(sA, sB)
+            trace.append("SPECIAL: multiplicand or multiplier is zero → signed zero")
+            return {"res_bits": self.pack_f32(s, self.EXP_ALL_ZEROS, self._zeros(self.FRAC_BITS)),
+                    "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
+                    "trace": trace}
 
-def shr_logical(a: Tuple[Bit, ...], steps: int = 1) -> Tuple[Bit, ...]:
-    out = list(a)
-    for _ in range(steps):
+        # Signs: XOR
+        sR = g.xor_gate(sA, sB)
+
+        # Effective exponents and significands with hidden
+        eAeff = self._effective_exp_mul(eA)
+        eBeff = self._effective_exp_mul(eB)
+        mA24  = self._mantissa24_with_hidden(eA, fA)
+        mB24  = self._mantissa24_with_hidden(eB, fB)
+
+        # 24x24 → 48 product via shift-add
+        trace.append("OP: 24x24 shift-add multiplier")
+        prod48 = self._mul_mantissas_24x24(mA24, mB24, trace)
+
+        # Exponent sum (9 bits) and subtract bias (127)
+        zA = (self.ZERO,) + eAeff
+        zB = (self.ZERO,) + eBeff
+        sum9, _ = self._add_unsigned(zA, zB)
+        bias9    = (self.ZERO,) + self.BIAS_BITS
+        exp9, _b = self._sub_unsigned(sum9, bias9)
+
+        # Normalize product and prepare GRS
+        val24, adjust, (G, R, S) = self._normalize_product(prod48)
+        if bool(adjust):
+            exp9, _ = self._inc_unsigned(exp9)
+            trace.append("NORMALIZE: product in [2,4) → exp++")
+
+        # Convert to 8-bit exponent (drop top bit)
+        exp8 = exp9[1:]
+
+        # Round-to-nearest-even
+        rounded24, exp8, inexact = self._round_ties_to_even(val24, G, R, S, exp8)
+
+        flags = {"overflow": False, "underflow": False, "invalid": False, "inexact": bool(inexact), "divide_by_zero": False}
+
+        # Overflow → ±∞
+        if self._is_exp_all_ones(exp8):
+            trace.append("PACK: exponent overflow → ±∞")
+            flags["overflow"] = True
+            flags["inexact"]  = True or flags["inexact"]
+            return {"res_bits": self.pack_f32(sR, self.EXP_ALL_ONES, self._zeros(self.FRAC_BITS)),
+                    "flags": flags, "trace": trace}
+
+        # Underflow if exponent field is zero (subnormal/zero), even if exact
+        if self._is_exp_all_zeros(exp8):
+            flags["underflow"] = True
+            trace.append("PACK: subnormal/zero result (underflow)")
+
+        # Pack: normals drop hidden bit; subnormals keep top 23 (no hidden 1)
+        if self._is_exp_all_zeros(exp8):
+            frac23 = rounded24[0:23]   # include would-be hidden bit
+        else:
+            frac23 = rounded24[1:]     # drop hidden bit
+
+        res_bits = self.pack_f32(sR, exp8, frac23)
+        trace.append("PACK: done")
+        return {"res_bits": res_bits, "flags": flags, "trace": trace}
+
+
+    def _addsub_core(self, a_bits: Bits, b_bits: Bits, subtract: bool) -> Dict[str, object]:
+        trace: List[str] = []
+
+        sA, eA, fA, kA = self.unpack_f32(a_bits)
+        sB, eB, fB, kB = self.unpack_f32(b_bits)
+
+        # NaN
+        if kA == "nan" or kB == "nan":
+            trace.append("SPECIAL: NaN operand → NaN")
+            return {"res_bits": self._make_qnan(),
+                    "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
+                    "trace": trace}
+
+        # For subtraction, flip sign of B
+        if subtract:
+            sB = g.not_gate(sB)
+            trace.append("SUB: flipping sign of B")
+
+        # Infinities
+        if kA == "inf" and kB == "inf":
+            if bool(g.xor_gate(sA, sB)):
+                trace.append("SPECIAL: +∞ and −∞ → invalid")
+                return {"res_bits": self._make_qnan(),
+                        "flags": {"overflow": False, "underflow": False, "invalid": True, "inexact": False, "divide_by_zero": False},
+                        "trace": trace}
+            trace.append("SPECIAL: ∞ + ∞ (same sign) → ∞")
+            return {"res_bits": self.pack_f32(sA, self.EXP_ALL_ONES, self._zeros(self.FRAC_BITS)),
+                    "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
+                    "trace": trace}
+
+        if kA == "inf":
+            trace.append("SPECIAL: A is ∞ → return ∞")
+            return {"res_bits": self.pack_f32(sA, self.EXP_ALL_ONES, self._zeros(self.FRAC_BITS)),
+                    "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
+                    "trace": trace}
+        if kB == "inf":
+            trace.append("SPECIAL: B is ∞ → return ∞")
+            return {"res_bits": self.pack_f32(sB, self.EXP_ALL_ONES, self._zeros(self.FRAC_BITS)),
+                    "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
+                    "trace": trace}
+
+        # zeros
+        if kA == "zero" and kB == "zero":
+            trace.append("SPECIAL: +0 and −0 → +0")
+            return {"res_bits": self.pack_f32(self.ZERO, self.EXP_ALL_ZEROS, self._zeros(self.FRAC_BITS)),
+                    "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
+                    "trace": trace}
+        if kA == "zero" and kB != "zero":
+            trace.append("SPECIAL: A=0 → return B")
+            return {"res_bits": self.pack_f32(sB, eB, fB),
+                    "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
+                    "trace": trace}
+        if kB == "zero" and kA != "zero":
+            trace.append("SPECIAL: B=0 → return A")
+            return {"res_bits": self.pack_f32(sA, eA, fA),
+                    "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
+                    "trace": trace}
+
+        # Prepare extended significands (with hidden and GRS)
+        mA27 = self._extend_grs(self._mantissa24_with_hidden(eA, fA))
+        mB27 = self._extend_grs(self._mantissa24_with_hidden(eB, fB))
+
+        # Align exponents and mantissas via right shifts with sticky
+        eA_eff, mA27, eB_eff, mB27 = self._align_operands(eA, mA27, eB, mB27, trace)
+
+        # Determine sign/magnitude relation
+        if self._bits_equal(eA_eff, eB_eff):
+            a_gt_b = self._unsigned_less_than(mB27[:-3], mA27[:-3])
+            b_gt_a = self._unsigned_less_than(mA27[:-3], mB27[:-3])
+        else:
+            a_gt_b = self._unsigned_less_than(eB_eff, eA_eff)
+            b_gt_a = not a_gt_b
+
+        same_sign = not bool(g.xor_gate(sA, sB))
+        op_is_add = same_sign
+
+        if op_is_add:
+            trace.append("OP: add significands")
+            sum27, carry = self._add_unsigned(mA27, mB27)
+            res_sign = sA
+            res_exp  = eA_eff
+
+            # Correct carry handling: inject carry, shift >>1 with sticky, drop back to 27, exp++
+            if bool(carry): 
+                sum28 = (carry,) + sum27
+                sh, _ = self._shr_with_sticky_grs(sum28)
+                sum27 = sh[1:]
+                res_exp, _ = self._inc_unsigned(res_exp)
+                trace.append("NORMALIZE: carry → shift >>1 with carry injected, exp++")
+
+            value24, G, R, S = self._extract_value_and_grs(sum27)
+
+            if (not bool(value24[0])) and (not self._is_exp_all_zeros(res_exp)):
+                res_exp = self.EXP_ALL_ZEROS
+                trace.append("NORMALIZE: result < 1.0 with exp>0 → force subnormal (exp=0)")
+
+        else:
+            # subtraction of magnitudes
+            if a_gt_b:
+                big_m, sml_m = mA27, mB27
+                res_sign = sA; res_exp = eA_eff
+                trace.append("OP: sub B from A (|A|>=|B|)")
+            elif b_gt_a:
+                big_m, sml_m = mB27, mA27
+                res_sign = sB; res_exp = eB_eff
+                trace.append("OP: sub A from B (|B|>|A|)")
+            else:
+                trace.append("OP: equal magnitudes with different signs → +0")
+                return {"res_bits": self.pack_f32(self.ZERO, self.EXP_ALL_ZEROS, self._zeros(self.FRAC_BITS)),
+                        "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
+                        "trace": trace}
+
+            diff27, _borrow = self._sub_unsigned(big_m, sml_m)
+            if self._bits_all_zero(diff27):
+                trace.append("NORMALIZE: diff is zero → +0")
+                return {"res_bits": self.pack_f32(self.ZERO, self.EXP_ALL_ZEROS, self._zeros(self.FRAC_BITS)),
+                        "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
+                        "trace": trace}
+
+            value24, G, R, S = self._extract_value_and_grs(diff27)
+            while not bool(value24[0]) and not self._is_exp_all_zeros(res_exp):
+                value24   = self._shl_logical(value24, 1)
+                res_exp, _ = self._dec_unsigned(res_exp)
+                trace.append("NORMALIZE: shift <<1, exp--")
+
+        # Round (RNE)
+        rounded24, res_exp, inexact = self._round_ties_to_even(value24, G, R, S, res_exp)
+
+        flags = {"overflow": False, "underflow": False, "invalid": False,
+                 "inexact": bool(inexact), "divide_by_zero": False}
+
+        if self._is_exp_all_ones(res_exp):
+            trace.append("PACK: exponent overflow → ±∞")
+            flags["overflow"] = True
+            flags["inexact"]  = True or flags["inexact"]
+            return {"res_bits": self.pack_f32(res_sign, self.EXP_ALL_ONES, self._zeros(self.FRAC_BITS)),
+                    "flags": flags, "trace": trace}
+
+        if self._is_exp_all_zeros(res_exp):
+            if bool(g.or3_gate(G, R, S)) or not bool(value24[0]):
+                flags["underflow"] = True
+                trace.append("PACK: exponent zero → subnormal/zero (underflow)")
+
+        frac23  = rounded24[1:]
+        res_bits = self.pack_f32(res_sign, res_exp, frac23)
+        trace.append("PACK: done")
+        return {"res_bits": res_bits, "flags": flags, "trace": trace}
+
+    def _zeros(self, n: int) -> Bits:
+        return tuple(self.ZERO for _ in range(n))
+
+    def _one_hot_lsb(self, n: int) -> Bits:
+        return tuple(self.ZERO for _ in range(n - 1)) + (self.ONE,)
+
+    def _bits_equal(self, a: Bits, b: Bits) -> bool:
+        neq = self.ZERO
+        for i in range(len(a)):
+            neq = g.or_gate(neq, g.xor_gate(a[i], b[i]))
+        return not bool(neq)
+
+    def _bits_all_zero(self, a: Bits) -> bool:
+        acc = self.ZERO
+        for b in a:
+            acc = g.or_gate(acc, b)
+        return not bool(acc)
+
+    def _vec_or(self, a: Bits) -> Bit:
+        acc = self.ZERO
+        for b in a:
+            acc = g.or_gate(acc, b)
+        return acc
+
+    def _unsigned_less_than(self, a: Bits, b: Bits) -> bool:
+        for i in range(len(a)):
+            ai, bi = bool(a[i]), bool(b[i])
+            if ai != bi:
+                return (not ai) and bi
+        return False
+
+    def _add_unsigned(self, a: Bits, b: Bits, cin: Bit = None) -> Tuple[Bits, Bit]:
+        assert len(a) == len(b)
+        cin = cin if cin is not None else self.ZERO
+        n = len(a); s: List[Bit] = [self.ZERO] * n
+        carry = cin
+        for i in range(n - 1, -1, -1):
+            axb = g.xor_gate(a[i], b[i])
+            sm  = g.xor_gate(axb, carry)
+            ab  = g.and_gate(a[i], b[i])
+            cax = g.and_gate(carry, axb)
+            cout = g.or_gate(ab, cax)
+            s[i] = sm; carry = cout
+        return tuple(s), carry
+
+    def _not_vec(self, a: Bits) -> Bits:
+        return tuple(g.not_gate(x) for x in a)
+
+    def _inc_unsigned(self, a: Bits) -> Tuple[Bits, Bit]:
+        return self._add_unsigned(a, self._one_hot_lsb(len(a)))
+
+    def _dec_unsigned(self, a: Bits) -> Tuple[Bits, Bit]:
+        inv = self._not_vec(self._one_hot_lsb(len(a)))
+        return self._add_unsigned(a, inv, self.ONE)
+
+    def _sub_unsigned(self, a: Bits, b: Bits) -> Tuple[Bits, Bit]:
+        nb = self._not_vec(b)
+        nb_plus_1, _ = self._inc_unsigned(nb)
+        s, carry = self._add_unsigned(a, nb_plus_1)
+        borrow = g.not_gate(carry)  # carry==1 ⇒ no borrow
+        return s, borrow
+
+    def _shl_logical(self, a: Bits, steps: int = 1) -> Bits:
+        out = list(a)
+        for _ in range(steps):
+            for i in range(len(out) - 1):
+                out[i] = out[i + 1]
+            out[-1] = self.ZERO
+        return tuple(out)
+
+    def _shr_logical(self, a: Bits, steps: int = 1) -> Bits:
+        out = list(a)
+        for _ in range(steps):
+            for i in range(len(out) - 1, 0, -1):
+                out[i] = out[i - 1]
+            out[0] = self.ZERO
+        return tuple(out)
+
+    def _shr_with_sticky_grs(self, mant_grs: Bits) -> Tuple[Bits, Bit]:
+        """
+        Shift right by 1 on [mantissa24 | G | R | S], accumulating sticky: new_S = old_R OR old_S.
+        """
+        out = list(mant_grs)
+        dropped = out[-1]  # old S
         for i in range(len(out) - 1, 0, -1):
             out[i] = out[i - 1]
-        out[0] = ZERO
-    return tuple(out)
+        out[0] = self.ZERO
+        out[-1] = g.or_gate(out[-1], dropped)  # new S = old R OR old S
+        return tuple(out), out[-1]
 
-def shr_with_sticky_grs(mant_grs: Tuple[Bit, ...]) -> Tuple[Tuple[Bit, ...], Bit]:
-    """
-    Right shift by 1; the bit dropped from LSB is OR-ed into the last (sticky) bit.
-    Input and output include G,R,S bits at the end of the vector.
-    """
-    out = list(mant_grs)
-    dropped = out[-1]  # LSB before the shift
-    for i in range(len(out) - 1, 0, -1):
-        out[i] = out[i - 1]
-    out[0] = ZERO
-    out[-1] = g.or_gate(out[-1], dropped)  # accumulate sticky
-    return tuple(out), out[-1]
+    def _make_qnan(self) -> Bits:
+        # 0x7FC00000: sign=0, exp=all 1s, frac MSB=1
+        return self.pack_f32(self.ZERO, self.EXP_ALL_ONES, (self.ONE,) + self._zeros(self.FRAC_BITS - 1))
 
-BIAS_BITS = (ZERO, ONE, ONE, ONE, ONE, ONE, ONE, ONE)  # 127
+    def _is_exp_all_ones(self, exp8: Bits) -> bool:
+        return self._bits_all_zero(tuple(g.not_gate(x) for x in exp8))
 
-def unpack_f32(bits32: Tuple[Bit, ...]) -> Tuple[Bit, Tuple[Bit, ...], Tuple[Bit, ...], str]:
-    assert len(bits32) == 32
-    s = bits32[0]
-    e = bits32[1:9]
-    f = bits32[9:32]
-    # classify
-    exp_all_zero = bits_all_zero(e)
-    exp_all_one  = bits_all_zero(tuple(g.not_gate(b) for b in e))
-    frac_zero    = bits_all_zero(f)
-    if exp_all_one:
-        klass = "inf" if frac_zero else "nan"
-    elif exp_all_zero:
-        klass = "zero" if frac_zero else "subnormal"
-    else:
-        klass = "normal"
-    return s, e, f, klass
+    def _is_exp_all_zeros(self, exp8: Bits) -> bool:
+        return self._bits_all_zero(exp8)
 
-def pack_f32(sign: Bit, exp8: Tuple[Bit, ...], frac23: Tuple[Bit, ...]) -> Tuple[Bit, ...]:
-    assert len(exp8) == 8 and len(frac23) == 23
-    return (sign,) + exp8 + frac23
+    def _mantissa24_with_hidden(self, exp8: Bits, frac23: Bits) -> Bits:
+        hidden = self.ZERO if self._is_exp_all_zeros(exp8) else self.ONE
+        return (hidden,) + frac23  # 24 bits
 
-def make_qnan() -> Tuple[Bit, ...]:
-    # canonical quiet-NaN: 0x7FC00000 -> s=0, exp=all 1s, frac MSB=1, rest 0
-    return pack_f32(ZERO, ones(8), (ONE,) + tuple(ZERO for _ in range(22)))
+    def _extend_grs(self, mant24: Bits) -> Bits:
+        return mant24 + (self.ZERO, self.ZERO, self.ZERO)
 
-def is_exp_all_ones(exp8: Tuple[Bit, ...]) -> bool:
-    return bits_all_zero(tuple(g.not_gate(x) for x in exp8))
+    def _extract_value_and_grs(self, m27: Bits) -> Tuple[Bits, Bit, Bit, Bit]:
+        G = m27[-3]; R = m27[-2]; S = m27[-1]
+        value24 = m27[:-3]
+        return value24, G, R, S
+    
+    def _round_ties_to_even(self, value24: Bits, G: Bit, R: Bit, S: Bit, exp8: Bits) -> Tuple[Bits, Bits, Bit]:
+        lsb    = value24[-1]
+        r_or_s = g.or_gate(R, S)
+        up_cond = g.and3_gate(G, g.or_gate(r_or_s, lsb), self.ONE)  # G && (R || S || LSB)
+        inexact = g.or_gate(G, r_or_s)
 
-def is_exp_all_zeros(exp8: Tuple[Bit, ...]) -> bool:
-    return bits_all_zero(exp8)
-
-def mantissa24_with_hidden(exp8: Tuple[Bit, ...], frac23: Tuple[Bit, ...]) -> Tuple[Bit, ...]:
-    # Hidden 1 for normal numbers, 0 for subnormal/zero
-    hidden = ZERO if is_exp_all_zeros(exp8) else ONE
-    return (hidden,) + frac23  # 24 bits
-
-def extend_grs(mant24: Tuple[Bit, ...]) -> Tuple[Bit, ...]:
-    # Append Guard, Round, Sticky = 0 initially
-    return mant24 + (ZERO, ZERO, ZERO)  # 27 bits total
-
-def extract_value_and_grs(m27: Tuple[Bit, ...]) -> Tuple[Tuple[Bit, ...], Bit, Bit, Bit]:
-    assert len(m27) >= 4
-    G = m27[-3]
-    R = m27[-2]
-    S = m27[-1]
-    value24 = m27[:-3]
-    return value24, G, R, S
-
-def round_ties_to_even(value24: Tuple[Bit, ...],
-                       G: Bit, R: Bit, S: Bit,
-                       exp8: Tuple[Bit, ...]) -> Tuple[Tuple[Bit, ...], Tuple[Bit, ...], Bit]:
-    """
-    Round the 24-bit value using G,R,S (ties-to-even). Returns (rounded_value24, new_exp8, inexact_bit).
-    If rounding overflows the 24-bit significand, it shifts right by 1 and increments exponent.
-    """
-    lsb = value24[-1]
-    r_or_s = g.or_gate(R, S)
-    up_cond = and3(G, g.or_gate(r_or_s, lsb), ONE)  # G && (R || S || LSB)
-    inexact = g.or_gate(G, r_or_s)
-
-    if bool(up_cond):
-        rounded, carry = add_unsigned(value24, one_hot_lsb(len(value24)))
-    else:
-        rounded, carry = value24, ZERO
-
-    if bool(carry):
-        # shift right by 1 and increment exponent
-        rounded = shr_logical(rounded, 1)
-        exp8, _ = inc_unsigned(exp8)
-
-    return rounded, exp8, inexact
-
-def eff_exp_for_align(exp8: Tuple[Bit, ...]) -> Tuple[Bit, ...]:
-    # For subnormals, effective exponent is 1 (so they can be aligned against normals)
-    if is_exp_all_zeros(exp8):
-        return one_hot_lsb(8)  # 00000001
-    return exp8
-
-def align_operands(a_e: Tuple[Bit, ...], a_m27: Tuple[Bit, ...],
-                   b_e: Tuple[Bit, ...], b_m27: Tuple[Bit, ...],
-                   trace: List[str]) -> Tuple[Tuple[Bit, ...], Tuple[Bit, ...], Tuple[Bit, ...], Tuple[Bit, ...]]:
-    """
-    Repeatedly right-shift the mantissa of the operand with the smaller exponent,
-    incrementing that exponent, until exponents match. Sticky accumulates in m27's S.
-    """
-    ea = list(eff_exp_for_align(a_e))
-    eb = list(eff_exp_for_align(b_e))
-    ma = a_m27
-    mb = b_m27
-
-    # Limit iterations to 255 to avoid runaway loops (safe upper bound for exp diff)
-    for _ in range(255):
-        if bits_equal(tuple(ea), tuple(eb)):
-            break
-
-        if unsigned_less_than(tuple(ea), tuple(eb)):
-            # shift A right with sticky
-            ma, _ = shr_with_sticky_grs(ma)
-            ea, _ = inc_unsigned(tuple(ea))
-            trace.append("ALIGN: shift A >> 1, inc exp(A)")
+        if bool(up_cond):
+            rounded, carry = self._add_unsigned(value24, self._one_hot_lsb(len(value24)))
         else:
-            mb, _ = shr_with_sticky_grs(mb)
-            eb, _ = inc_unsigned(tuple(eb))
-            trace.append("ALIGN: shift B >> 1, inc exp(B)")
+            rounded, carry = value24, self.ZERO
 
-    return tuple(ea), ma, tuple(eb), mb
-
-def addsub_core(a_bits: Tuple[Bit, ...], b_bits: Tuple[Bit, ...], subtract: bool) -> Dict[str, object]:
-    trace: List[str] = []
-
-    sA, eA, fA, kA = unpack_f32(a_bits)
-    sB, eB, fB, kB = unpack_f32(b_bits)
-
-    # NaN handling
-    if kA == "nan" or kB == "nan":
-        trace.append("SPECIAL: NaN operand → NaN")
-        return {"res_bits": make_qnan(),
-                "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
-                "trace": trace}
-
-    # For subtraction, invert sign of B
-    if subtract:
-        sB = g.not_gate(sB)
-        trace.append("SUB: flipping sign of B")
-
-    # Infinity handling
-    if kA == "inf" and kB == "inf":
-        if bool(xor_gate(sA, sB)):
-            trace.append("SPECIAL: +∞ and −∞ → invalid")
-            return {"res_bits": make_qnan(),
-                    "flags": {"overflow": False, "underflow": False, "invalid": True, "inexact": False, "divide_by_zero": False},
-                    "trace": trace}
-        else:
-            trace.append("SPECIAL: ∞ + ∞ (same sign) → ∞")
-            return {"res_bits": pack_f32(sA, ones(8), zeros(23)),
-                    "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
-                    "trace": trace}
-
-    if kA == "inf":
-        trace.append("SPECIAL: A is ∞ → return ∞")
-        return {"res_bits": pack_f32(sA, ones(8), zeros(23)),
-                "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
-                "trace": trace}
-    if kB == "inf":
-        trace.append("SPECIAL: B is ∞ → return ∞")
-        return {"res_bits": pack_f32(sB, ones(8), zeros(23)),
-                "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
-                "trace": trace}
-
-    # Zeros: handle signed zero tie as +0
-    if kA == "zero" and kB == "zero":
-        trace.append("SPECIAL: +0 and −0 → +0")
-        return {"res_bits": pack_f32(ZERO, zeros(8), zeros(23)),
-                "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
-                "trace": trace}
-    if kA == "zero" and kB != "zero":
-        trace.append("SPECIAL: A=0 → return B")
-        return {"res_bits": pack_f32(sB, eB, fB),
-                "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
-                "trace": trace}
-    if kB == "zero" and kA != "zero":
-        trace.append("SPECIAL: B=0 → return A")
-        return {"res_bits": pack_f32(sA, eA, fA),
-                "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
-                "trace": trace}
-
-    # Prepare mantissas (with hidden) and extend with GRS
-    mA27 = extend_grs(mantissa24_with_hidden(eA, fA))
-    mB27 = extend_grs(mantissa24_with_hidden(eB, fB))
-
-    # Align exponents and mantissas via right shifts with sticky
-    eA_eff, mA27, eB_eff, mB27 = align_operands(eA, mA27, eB, mB27, trace)
-
-    # Determine result sign for add/sub: sign of larger magnitude
-    if bits_equal(eA_eff, eB_eff):
-        a_gt_b = unsigned_less_than(mB27[:-3], mA27[:-3])
-        b_gt_a = unsigned_less_than(mA27[:-3], mB27[:-3])
-    else:
-        a_gt_b = unsigned_less_than(eB_eff, eA_eff)
-        b_gt_a = not a_gt_b
-
-    same_sign = not bool(xor_gate(sA, sB))
-    op_is_add = same_sign
-
-    # Mantissa operation
-    if op_is_add:
-        trace.append("OP: add significands")
-        sum27, carry = add_unsigned(mA27, mB27)
-        res_sign = sA  # same sign
-        res_exp = eA_eff
-        # Normalize if carry across MSB (value >= 2.0)
         if bool(carry):
-            sum27, _ = shr_with_sticky_grs(sum27)
-            res_exp, _ = inc_unsigned(res_exp)
-            trace.append("NORMALIZE: carry → shift >>1, exp++")
-        value24, G, R, S = extract_value_and_grs(sum27)
-    else:
-        # subtract smaller magnitude from larger
-        if a_gt_b:
-            big_m, sml_m = mA27, mB27
-            res_sign = sA
-            res_exp = eA_eff
-            trace.append("OP: sub B from A (|A|>=|B|)")
-        elif b_gt_a:
-            big_m, sml_m = mB27, mA27
-            res_sign = sB
-            res_exp = eB_eff
-            trace.append("OP: sub A from B (|B|>|A|)")
-        else:
-            # exact cancellation
-            trace.append("OP: equal magnitudes with different signs → +0")
-            return {"res_bits": pack_f32(ZERO, zeros(8), zeros(23)),
-                    "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
-                    "trace": trace}
+            rounded = self._shr_logical(rounded, 1)
+            exp8, _ = self._inc_unsigned(exp8)
 
-        diff27, _borrow = sub_unsigned(big_m, sml_m)
-        if bits_all_zero(diff27):
-            trace.append("NORMALIZE: diff is zero → +0")
-            return {"res_bits": pack_f32(ZERO, zeros(8), zeros(23)),
-                    "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
-                    "trace": trace}
+        return rounded, exp8, inexact
 
-        value24, G, R, S = extract_value_and_grs(diff27)
-        # Normalize left until hidden '1' is restored or exponent hits 0
-        while not bool(value24[0]) and not is_exp_all_zeros(res_exp):
-            value24 = shl_logical(value24, 1)
-            res_exp, _ = dec_unsigned(res_exp)
-            trace.append("NORMALIZE: shift <<1, exp--")
-        # If exponent becomes zero while leading bit still 0 -> subnormal
+    def _eff_exp_for_align(self, exp8: Bits) -> Bits:
+        return self._one_hot_lsb(8) if self._is_exp_all_zeros(exp8) else exp8
 
-    # ROUND (ties to even)
-    rounded24, res_exp, inexact = round_ties_to_even(value24, G, R, S, res_exp)
+    def _align_operands(self, a_e: Bits, a_m27: Bits, b_e: Bits, b_m27: Bits, trace: List[str]) -> Tuple[Bits, Bits, Bits, Bits]:
+        ea = list(self._eff_exp_for_align(a_e))
+        eb = list(self._eff_exp_for_align(b_e))
+        ma = a_m27
+        mb = b_m27
 
-    # Pack with flags
-    flags = {"overflow": False, "underflow": False, "invalid": False,
-             "inexact": bool(inexact), "divide_by_zero": False}
+        for _ in range(255):  # safe cap
+            if self._bits_equal(tuple(ea), tuple(eb)):
+                break
+            if self._unsigned_less_than(tuple(ea), tuple(eb)):
+                ma, _ = self._shr_with_sticky_grs(ma)
+                ea, _ = self._inc_unsigned(tuple(ea))
+                trace.append("ALIGN: shift A >> 1, inc exp(A)")
+            else:
+                mb, _ = self._shr_with_sticky_grs(mb)
+                eb, _ = self._inc_unsigned(tuple(eb))
+                trace.append("ALIGN: shift B >> 1, inc exp(B)")
 
-    # Exponent overflow to all 1s → ±∞
-    if is_exp_all_ones(res_exp):
-        trace.append("PACK: exponent overflow → ±∞")
-        flags["overflow"] = True
-        flags["inexact"] = True or flags["inexact"]
-        return {"res_bits": pack_f32(res_sign, ones(8), zeros(23)),
-                "flags": flags, "trace": trace}
+        return tuple(ea), ma, tuple(eb), mb
 
-    # Underflow if exponent is zero (subnormal or zero after rounding)
-    if is_exp_all_zeros(res_exp):
-        if bool(or3(G, R, S)) or not bool(value24[0]):
-            flags["underflow"] = True
-            trace.append("PACK: exponent zero → subnormal/zero (underflow)")
+    def _add_into(self, acc: List[Bit], addend: Bits, lsb_offset: int) -> None:
+        idx = len(acc) - 1 - lsb_offset
+        carry = self.ZERO
+        for j in range(len(addend) - 1, -1, -1):
+            axb = g.xor_gate(acc[idx], addend[j])
+            sm  = g.xor_gate(axb, carry)
+            ab  = g.and_gate(acc[idx], addend[j])
+            cax = g.and_gate(carry, axb)
+            cout = g.or_gate(ab, cax)
+            acc[idx] = sm; carry = cout
+            idx -= 1
+        while bool(carry) and idx >= 0:
+            axb = g.xor_gate(acc[idx], carry)
+            sm  = axb
+            carry = g.and_gate(acc[idx], carry)
+            acc[idx] = sm
+            idx -= 1
 
-    # Build fraction (drop hidden)
-    frac23 = rounded24[1:]
-    res_bits = pack_f32(res_sign, res_exp, frac23)
-    trace.append("PACK: done")
-    return {"res_bits": res_bits, "flags": flags, "trace": trace}
+    def _mul_mantissas_24x24(self, a24: Bits, b24: Bits, trace: List[str]) -> Bits:
+        prod = [self.ZERO for _ in range(48)]
+        multiplier = b24
+        multiplicand = a24  # aligned by offset in _add_into
+        for i in range(24):      # iterate from LSB of multiplier
+            bbit = multiplier[-1]
+            if bool(bbit):
+                self._add_into(prod, multiplicand, i)
+                trace.append(f"MUL step{i}: add")
+            multiplier = self._shr_logical(multiplier, 1)
+        return tuple(prod)
 
-def fadd_f32(a_bits: Tuple[Bit, ...], b_bits: Tuple[Bit, ...]) -> Dict[str, object]:
-    return addsub_core(a_bits, b_bits, subtract=False)
+    def _normalize_product(self, prod48: Bits) -> Tuple[Bits, Bit, Tuple[Bit, Bit, Bit]]:
+        if bool(prod48[0]):  # [2,4)
+            value24 = prod48[0:24]
+            guard   = prod48[24] if len(prod48) > 24 else self.ZERO
+            roundb  = prod48[25] if len(prod48) > 25 else self.ZERO
+            sticky  = self._vec_or(prod48[26:]) if len(prod48) > 26 else self.ZERO
+            return value24, self.ONE, (guard, roundb, sticky)
+        else:                 # [1,2)
+            value24 = prod48[1:25]
+            guard   = prod48[25] if len(prod48) > 25 else self.ZERO
+            roundb  = prod48[26] if len(prod48) > 26 else self.ZERO
+            sticky  = self._vec_or(prod48[27:]) if len(prod48) > 27 else self.ZERO
+            return value24, self.ZERO, (guard, roundb, sticky)
 
-def fsub_f32(a_bits: Tuple[Bit, ...], b_bits: Tuple[Bit, ...]) -> Dict[str, object]:
-    return addsub_core(a_bits, b_bits, subtract=True)
+    def _effective_exp_mul(self, exp8: Bits) -> Bits:
+        return self._one_hot_lsb(8) if self._is_exp_all_zeros(exp8) else exp8
 
-def add_into(acc: List[Bit], addend: Tuple[Bit, ...], lsb_offset: int) -> None:
-    """
-    acc: mutable 48-bit product vector (MSB-first)
-    addend: 24-bit to add
-    lsb_offset: how far from LSB to align addend's LSB (0 means align at LSB)
-    """
-    idx = len(acc) - 1 - lsb_offset
-    carry = ZERO
-    for j in range(len(addend) - 1, -1, -1):
-        axb = xor_gate(acc[idx], addend[j])
-        sm  = xor_gate(axb, carry)
-        ab  = g.and_gate(acc[idx], addend[j])
-        cax = g.and_gate(carry, axb)
-        cout = g.or_gate(ab, cax)
-        acc[idx] = sm
-        carry = cout
-        idx -= 1
-    # propagate carry leftward if needed
-    while bool(carry) and idx >= 0:
-        axb = xor_gate(acc[idx], carry)
-        sm  = axb
-        carry = g.and_gate(acc[idx], carry)
-        acc[idx] = sm
-        idx -= 1
 
-def mul_mantissas_24x24(a24: Tuple[Bit, ...], b24: Tuple[Bit, ...]) -> Tuple[Bit, ...]:
-    """
-    Shift-add multiplier for 24x24 -> 48 bits.
-    a24, b24 are MSB-first (bit[0] is MSB, bit[23] is LSB)
-    """
-    prod = [ZERO for _ in range(48)]
-    for i in range(24):              # iterate multiplier bits from LSB to MSB
-        bbit = b24[-1 - i]
-        if bool(bbit):
-            add_into(prod, a24, i)
-    return tuple(prod)
+_default_fpu = FPU32()
 
-def normalize_product(prod48: Tuple[Bit, ...]) -> Tuple[Tuple[Bit, ...], Bit, Tuple[Bit, ...]]:
-    """
-    Returns (value24, carry_adjust_bit, grs_bits (G,R,S combined into 3-bits))
-    If prod in [2,4) → take top 24 bits and set carry_adjust=1 (exp++).
-    Else take next 24 bits. GRS from following bits; sticky is OR of rest.
-    """
-    if bool(prod48[0]):  # top bit set → [2,4)
-        value24 = prod48[0:24]
-        guard   = prod48[24] if len(prod48) > 24 else ZERO
-        roundb  = prod48[25] if len(prod48) > 25 else ZERO
-        sticky  = vec_or(prod48[26:]) if len(prod48) > 26 else ZERO
-        return value24, ONE, (guard, roundb, sticky)
-    else:  # [1,2)
-        value24 = prod48[1:25]
-        guard   = prod48[25] if len(prod48) > 25 else ZERO
-        roundb  = prod48[26] if len(prod48) > 26 else ZERO
-        sticky  = vec_or(prod48[27:]) if len(prod48) > 27 else ZERO
-        return value24, ZERO, (guard, roundb, sticky)
+def fadd_f32(a_bits: Bits, b_bits: Bits) -> Dict[str, object]:
+    return _default_fpu.add(a_bits, b_bits)
 
-def effective_exp_mul(exp8: Tuple[Bit, ...]) -> Tuple[Bit, ...]:
-    # For subnormal, use 1 as effective exponent
-    return one_hot_lsb(8) if is_exp_all_zeros(exp8) else exp8
+def fsub_f32(a_bits: Bits, b_bits: Bits) -> Dict[str, object]:
+    return _default_fpu.sub(a_bits, b_bits)
 
-def fmul_f32(a_bits: Tuple[Bit, ...], b_bits: Tuple[Bit, ...]) -> Dict[str, object]:
-    trace: List[str] = []
+def fmul_f32(a_bits: Bits, b_bits: Bits) -> Dict[str, object]:
+    return _default_fpu.mul(a_bits, b_bits)
 
-    sA, eA, fA, kA = unpack_f32(a_bits)
-    sB, eB, fB, kB = unpack_f32(b_bits)
+def unpack_f32(bits32: Bits):
+    return _default_fpu.unpack_f32(bits32)
 
-    # NaN handling
-    if kA == "nan" or kB == "nan":
-        trace.append("SPECIAL: NaN operand → NaN")
-        return {"res_bits": make_qnan(),
-                "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
-                "trace": trace}
-
-    # INF and zero special cases
-    if kA == "inf" or kB == "inf":
-        if kA == "zero" or kB == "zero":
-            trace.append("SPECIAL: 0 · ∞ → invalid")
-            return {"res_bits": make_qnan(),
-                    "flags": {"overflow": False, "underflow": False, "invalid": True, "inexact": False, "divide_by_zero": False},
-                    "trace": trace}
-        s = xor_gate(sA, sB)
-        trace.append("SPECIAL: finite · ∞ → ∞")
-        return {"res_bits": pack_f32(s, ones(8), zeros(23)),
-                "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
-                "trace": trace}
-
-    if kA == "zero" or kB == "zero":
-        trace.append("SPECIAL: multiplicand or multiplier is zero → signed zero")
-        s = xor_gate(sA, sB)
-        return {"res_bits": pack_f32(s, zeros(8), zeros(23)),
-                "flags": {"overflow": False, "underflow": False, "invalid": False, "inexact": False, "divide_by_zero": False},
-                "trace": trace}
-
-    # Signs: XOR
-    sR = xor_gate(sA, sB)
-
-    # Effective exponents and significands with hidden
-    eAeff = effective_exp_mul(eA)
-    eBeff = effective_exp_mul(eB)
-    mA24 = mantissa24_with_hidden(eA, fA)
-    mB24 = mantissa24_with_hidden(eB, fB)
-
-    # Exponent sum (9 bits): eAeff + eBeff
-    zA = (ZERO,) + eAeff
-    zB = (ZERO,) + eBeff
-    sum9, _ = add_unsigned(zA, zB)
-
-    # Subtract bias (127) from sum9
-    bias9 = (ZERO,) + BIAS_BITS
-    exp9, _borrow = sub_unsigned(sum9, bias9)  # 9-bit biased exponent
-
-    trace.append("OP: 24x24 shift-add multiplier")
-    prod48 = mul_mantissas_24x24(mA24, mB24)
-
-    # Normalize product and prepare GRS
-    val24, adjust, (G, R, S) = normalize_product(prod48)
-    if bool(adjust):
-        trace.append("NORMALIZE: product in [2,4) → exp++")
-        exp9, _ = inc_unsigned(exp9)
-
-    # Rounding
-    exp8 = exp9[1:]  # drop top bit; if it becomes all ones after rounding, it's overflow
-    rounded24, exp8, inexact = round_ties_to_even(val24, G, R, S, exp8)
-
-    flags = {"overflow": False, "underflow": False, "invalid": False, "inexact": bool(inexact), "divide_by_zero": False}
-
-    # Exponent overflow
-    if is_exp_all_ones(exp8):
-        trace.append("PACK: exponent overflow → ±∞")
-        flags["overflow"] = True
-        flags["inexact"] = True or flags["inexact"]
-        return {"res_bits": pack_f32(sR, ones(8), zeros(23)), "flags": flags, "trace": trace}
-
-    # Underflow (subnormal after rounding)
-    if is_exp_all_zeros(exp8):
-        if bool(or3(G, R, S)):
-            flags["underflow"] = True
-            trace.append("PACK: underflow to subnormal/zero")
-
-    frac23 = rounded24[1:]
-    res_bits = pack_f32(sR, exp8, frac23)
-    trace.append("PACK: done")
-    return {"res_bits": res_bits, "flags": flags, "trace": trace}
+def pack_f32(sign: Bit, exp8: Bits, frac23: Bits) -> Bits:
+    return _default_fpu.pack_f32(sign, exp8, frac23)

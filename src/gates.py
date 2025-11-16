@@ -79,3 +79,35 @@ def one_bit_adder(data_a:Bit, data_b:Bit, carry_in:Bit, power:Bit = None) -> Bit
     c_and_a_or_c_and_b_or_a_and_b = or_gate(or_gate(data_a, data_b, power), carry_in, power)
 
     return c_and_a_or_c_and_b_or_a_and_b
+
+def xor_gate(data_a: Bit, data_b: Bit, power: Bit = None) -> Bit:
+    """
+    XOR implemented from primitive gates:
+      XOR = (a OR b) AND NOT(a AND b)
+    """
+    power = power if power is not None else Bit(True)
+    a_or_b = or_gate(data_a, data_b, power)
+    a_and_b = and_gate(data_a, data_b, power)
+    not_a_and_b = not_gate(a_and_b, power)
+    return and_gate(a_or_b, not_a_and_b, power)
+
+def xnor_gate(data_a: Bit, data_b: Bit, power: Bit = None) -> Bit:
+    """
+    XNOR = NOT(XOR)
+    """
+    power = power if power is not None else Bit(True)
+    return not_gate(xor_gate(data_a, data_b, power), power)
+
+def and3_gate(a: Bit, b: Bit, c: Bit, power: Bit = None) -> Bit:
+    """
+    3-input AND built from 2-input AND.
+    """
+    power = power if power is not None else Bit(True)
+    return and_gate(and_gate(a, b, power), c, power)
+
+def or3_gate(a: Bit, b: Bit, c: Bit, power: Bit = None) -> Bit:
+    """
+    3-input OR built from 2-input OR.
+    """
+    power = power if power is not None else Bit(True)
+    return or_gate(or_gate(a, b, power), c, power)
