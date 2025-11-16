@@ -15,11 +15,11 @@ class Datapath:
     self.mu = memory_unit
     self.adder = fpu32
 
-  def getInstruction(self, address:Bit[32])->string:
-    result = mu.getInstruction(address)
+  def getInstruction(self, address:Bit[32])->str:
+    result = self.mu.getInstruction(address)
     return result
 
-  def execute(self, instruction:string):
+  def execute(self, instruction:str):
     match instruction:
       #arithmetic  
       case "add": 
