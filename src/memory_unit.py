@@ -6,34 +6,37 @@ It takes in an address and outputs an instruction
 
 from memory import Bit, Byte, Memory
 
+Bits = Tuple[Bit, 32]
+
 class MemoryUnit:
   instructions:dict = 
     {
       #arithmetic
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]: "add",
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]: "sub",
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0]: "addi",
+      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0)): "add",
+      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1)): "sub",
+      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(0)): "addi",
       #logical
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1]: "and",
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0]: "or",
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1]: "xor",
+      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(1)): "and",
+      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(0),Bit(0)): "or",
+      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(0),Bit(1)): "xor",
       #shifts
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0]: "sll",
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1]: "srl",
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0]: "sra",
+      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(1),Bit(0)): "sll",
+      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(1),Bit(1)): "srl",
+      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(0),Bit(0),Bit(0)): "sra",
       #memory
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1]: "lw",
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0]: "sw",
+      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(0),Bit(0),Bit(1)): "lw",
+      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(0),Bit(1),Bit(0)): "sw",
       #control
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1]: "beq",
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0]: "bne",
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,1]: "jal",
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0]: "jalr",
+      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(0),Bit(1),Bit(1)): "beq",
+      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(1),Bit(0),Bit(0)): "bne",
+      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(1),Bit(0),Bit(1)): "jal",
+      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(1),Bit(1),Bit(0)): "jalr",
       #immediate/utility
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1]: "lui",
-      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0]: "auipc"    }
+      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(1),Bit(1),Bit(1)): "lui",
+      Tuple(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(1),Bit(0),Bit(0),Bit(0),Bit(0)): "auipc"    
+    }
 
-  def getInstruction(self, address:Bit[32]) -> string:
+  def getInstruction(self, address:Bits) -> string:
     if address not in self.instructions:
       raise IndexError("Address not found")
     return self.instructions[address]
