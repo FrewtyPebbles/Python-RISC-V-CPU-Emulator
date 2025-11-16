@@ -3,7 +3,7 @@ This file contains the Datapath class
 This will contain a memory_unit, an adder, and a program counter
 The adder will increment the value held by the program counter, which contains the memory address of the instruction, which will be retrieved by the memory unit
 """
-from memory import Bit, Byte, Memory
+from memory import Bit, Bitx32, Byte, Memory
 from memory_unit import memory_unit
 from fpu import FPU32
 #Note to self: this will have to work with the clock as well
@@ -15,7 +15,7 @@ class Datapath:
     self.mu = memory_unit
     self.adder = fpu32
 
-  def getInstruction(self, address:Bit[32])->str:
+  def getInstruction(self, address:Bitx32)->str:
     result = self.mu.getInstruction(address)
     return result
 
