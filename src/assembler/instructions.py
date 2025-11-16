@@ -96,6 +96,16 @@ class InstructionType(Enum):
 
 InsTyp = InstructionType
 
+class DirectiveToken(Token):
+    token_type = TokenType.DIRECTIVE
+    directive:str
+    arguments:list[str]
+    
+    def __init__(self, directive:str, *arguments:list[str]):
+        self.directive = directive
+        self.arguments = arguments
+
+
 class LabelToken(Token):
     token_type = TokenType.LABEL
     name:str
