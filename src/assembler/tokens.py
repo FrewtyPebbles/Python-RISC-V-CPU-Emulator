@@ -169,6 +169,9 @@ class InstructionToken(Token):
 
         raise SyntaxError(f"instruction '{self.instruction}' does not have a specified opcode")
     
+    def get_imm(self) -> tuple[Bit,...]:
+        # TODO
+        pass
 
     def to_hex(self) -> str:
         match self.instruction_type:
@@ -180,4 +183,24 @@ class InstructionToken(Token):
                 # imm[11:0], rs1, funct3, rd, opcode
                 imm = self.get_imm()
                 big_endian_code = tuple(*imm[0:12], *self.reg_to_bin(self.rs1), *self.get_funct3(), *self.reg_to_bin(self.rd), *self.get_opcode())
+                return hex_big_to_little_endian(bin_to_hex(big_endian_code))
+            case InsTyp.S:
+                # 
+                imm = self.get_imm()
+                big_endian_code = tuple(*imm[5:12], *self.reg_to_bin(self.rs2), *self.reg_to_bin(self.rs1), *self.get_funct3(), *imm[0:5], *self.get_opcode())
+                return hex_big_to_little_endian(bin_to_hex(big_endian_code))
+            case InsTyp.B:
+                # 
+                imm = self.get_imm()
+                big_endian_code = tuple(imm[12], *imm[5:11], *self.reg_to_bin(self.rs2), *self.reg_to_bin(self.rs1), *self.get_funct3(), *imm[1:5], imm[11], *self.get_opcode())
+                return hex_big_to_little_endian(bin_to_hex(big_endian_code))
+            case InsTyp.U:
+                # 
+                imm = self.get_imm()
+                big_endian_code = tuple(*imm[12:32], *self.reg_to_bin(self.rd), *self.get_opcode())
+                return hex_big_to_little_endian(bin_to_hex(big_endian_code))
+            case InsTyp.J:
+                # 
+                imm = self.get_imm()
+                big_endian_code = tuple(imm[20], *imm[1:11], imm[11], *imm[12:20], *self.reg_to_bin(self.rd), *self.get_opcode())
                 return hex_big_to_little_endian(bin_to_hex(big_endian_code))
