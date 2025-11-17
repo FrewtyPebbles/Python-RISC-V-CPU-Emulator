@@ -180,7 +180,17 @@ def dec_to_hex(num:int):
     return hex(num)[2:].upper()
 
 def bin_to_hex(bits:tuple[Bit,...]):
-    return dec_to_hex(bin_to_dec(bits))
+    # build integer from bits
+    value = 0
+    for i, b in enumerate(bits):
+        if b:
+            value |= (1 << i)
+
+    # number of hex digits needed (4 bits per hex digit)
+    hex_digits = (len(bits) + 3) // 4
+
+    # format with zero-padding
+    return f"{value:0{hex_digits}X}"
 
 def hex_to_bin(hex_str:str, bit_length:int) -> tuple[Bit,...]:
     # remove common prefixes like "0x"
@@ -209,13 +219,15 @@ def octal_to_bin(octal_str: str, bit_length:int) -> tuple[Bit, ...]:
     return tuple(Bit((value >> i) & 1) for i in range(bit_length))
 
 def bin_endian_swap(bits:tuple[Bit,...]) -> tuple[Bit,...]:
-    length:int = len(bits)
-    ret_bits:list[Bit] = []
-    for i in range(length):
-        reverse_i:int = length - i
-        ret_bits.append(bits[(reverse_i // 8) - 1 + i % 8])
-    
-    return tuple(ret_bits)
+    if len(bits) % 8 != 0:
+        raise ValueError("Bit length must be a multiple of 8 for endian swap.")
+
+    swapped = []
+    for byte_start in range(len(bits)-8, -1, -8):
+        # append one byte in the same internal order
+        swapped.extend(bits[byte_start:byte_start+8])
+
+    return tuple(swapped)
 
 def hex_endian_swap(hex_str: str) -> str:
     # Ensure even length by padding with a leading zero if needed
@@ -238,4 +250,29 @@ def is_int(s:str) -> bool:
         return False
     
 def bin_str_to_bits(binary:str) -> tuple[Bit,...]:
-    return tuple(Bit(True if bit == "1" else False) for bit in binary)
+    return tuple(Bit(True if bit == "1" else False) for bit in binary[::-1])
+
+def bits_to_uint32(bits: tuple[Bit, ...]) -> int:
+    v = 0
+    for i, b in enumerate(bits):
+        if bool(b):
+            v |= 1 << i
+    return v
+
+def int_to_bits(value:int, size:int) -> tuple[Bit,...]:
+    return tuple(Bit((value >> i) & 1) for i in range(size))
+
+def bits_to_hex_little_endian(bits: tuple[Bit, ...]) -> str:
+    if len(bits) % 8 != 0:
+        raise ValueError("Bit length must be a multiple of 8")
+
+    # Convert internal LSB-first bits to integer
+    value = 0
+    for i, b in enumerate(bits):
+        value |= (int(b) << i)
+
+    # Convert to big-endian hex (human readable)
+    hex_be = f"{value:0{len(bits)//4}X}"
+
+    # Now swap bytes for file output
+    return hex_endian_swap(hex_be)
