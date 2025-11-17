@@ -193,7 +193,7 @@ def octal_to_bin(octal_str: str, bit_length:int) -> tuple[Bit, ...]:
 
     return tuple(Bit((value >> i) & 1) for i in range(bit_length))
 
-def bin_big_to_little_endian(bits:tuple[Bit,...]) -> tuple[Bit,...]:
+def bin_endian_swap(bits:tuple[Bit,...]) -> tuple[Bit,...]:
     length:int = len(bits)
     ret_bits:list[Bit] = []
     for i in range(length):
@@ -202,7 +202,7 @@ def bin_big_to_little_endian(bits:tuple[Bit,...]) -> tuple[Bit,...]:
     
     return tuple(ret_bits)
 
-def hex_big_to_little_endian(hex_str: str) -> str:
+def hex_endian_swap(hex_str: str) -> str:
     # Ensure even length by padding with a leading zero if needed
     if len(hex_str) % 2 != 0:
         raise SyntaxError(f"The provided hex '{hex_str}' has an odd number of hex digits")

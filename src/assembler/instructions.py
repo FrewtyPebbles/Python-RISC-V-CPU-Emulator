@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 from memory import (
     Bit, Bitx10, Bitx12, Bitx2, Bitx20, Bitx3, Bitx32, Bitx4, Bitx5, Bitx6, Bitx7, Bitx8,
-    bin_str_to_bits, bin_to_dec, hex_big_to_little_endian, bin_to_hex, dec_to_bin,
+    bin_str_to_bits, bin_to_dec, hex_endian_swap, bin_to_hex, dec_to_bin,
     hex_to_bin, octal_to_bin,
 )
 
@@ -208,29 +208,29 @@ class InstructionToken(Token):
             case InsTyp.R:
                 # no immediate
                 big_endian_code = tuple(*self.get_funct7(), *self.reg_to_bin(self.rs2), *self.reg_to_bin(self.rs1), *self.get_funct3(), *self.reg_to_bin(self.rd), *self.get_opcode())
-                return hex_big_to_little_endian(bin_to_hex(big_endian_code))
+                return hex_endian_swap(bin_to_hex(big_endian_code))
             case InsTyp.I:
                 # imm[11:0], rs1, funct3, rd, opcode
                 imm = self.get_imm()
                 big_endian_code = tuple(*imm[0:12], *self.reg_to_bin(self.rs1), *self.get_funct3(), *self.reg_to_bin(self.rd), *self.get_opcode())
-                return hex_big_to_little_endian(bin_to_hex(big_endian_code))
+                return hex_endian_swap(bin_to_hex(big_endian_code))
             case InsTyp.S:
                 # 
                 imm = self.get_imm()
                 big_endian_code = tuple(*imm[5:12], *self.reg_to_bin(self.rs2), *self.reg_to_bin(self.rs1), *self.get_funct3(), *imm[0:5], *self.get_opcode())
-                return hex_big_to_little_endian(bin_to_hex(big_endian_code))
+                return hex_endian_swap(bin_to_hex(big_endian_code))
             case InsTyp.B:
                 # 
                 imm = self.get_imm()
                 big_endian_code = tuple(imm[12], *imm[5:11], *self.reg_to_bin(self.rs2), *self.reg_to_bin(self.rs1), *self.get_funct3(), *imm[1:5], imm[11], *self.get_opcode())
-                return hex_big_to_little_endian(bin_to_hex(big_endian_code))
+                return hex_endian_swap(bin_to_hex(big_endian_code))
             case InsTyp.U:
                 # 
                 imm = self.get_imm()
                 big_endian_code = tuple(*imm[12:32], *self.reg_to_bin(self.rd), *self.get_opcode())
-                return hex_big_to_little_endian(bin_to_hex(big_endian_code))
+                return hex_endian_swap(bin_to_hex(big_endian_code))
             case InsTyp.J:
                 # 
                 imm = self.get_imm()
                 big_endian_code = tuple(imm[20], *imm[1:11], imm[11], *imm[12:20], *self.reg_to_bin(self.rd), *self.get_opcode())
-                return hex_big_to_little_endian(bin_to_hex(big_endian_code))
+                return hex_endian_swap(bin_to_hex(big_endian_code))

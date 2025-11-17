@@ -69,8 +69,8 @@ class Assembler:
         
         return DirectiveToken(directive_name, *args)
 
-    def parse_instruction(line: str) -> Optional[Tuple[str, List[str]]]:
-        
+    def parse_instruction(line: str) -> InstructionToken:
+        # TODO
         # Split mnemonic and arguments
         parts = line.split(maxsplit=1)
         mnemonic = parts[0]  # e.g., "addi"
@@ -79,4 +79,4 @@ class Assembler:
         # Split arguments by comma and strip whitespace
         args = [arg.strip() for arg in args_str.split(',')] if args_str else []
         
-        return (mnemonic, args)
+        
