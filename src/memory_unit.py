@@ -92,6 +92,5 @@ class MemoryUnit:
       imm = instruction[12][31] 
       return "jal", rd, imm
     
-    else: #triggers default case in datapath, meaning "instruction not found"
+    else: #triggers default case in datapath, meaning the instruction was not found
       return self.FAIL_TUPLE 
-    
