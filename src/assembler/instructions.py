@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 from memory import (
     Bit, Bitx10, Bitx12, Bitx2, Bitx20, Bitx3, Bitx32, Bitx4, Bitx5, Bitx6, Bitx7, Bitx8,
-    bin_str_to_bits, bin_to_dec, dec_to_bin_signed, hex_endian_swap, bin_to_hex, dec_to_bin,
+    bin_str_to_bits, bin_to_dec, bits_to_uint32, dec_to_bin_signed, hex_endian_swap, bin_to_hex, dec_to_bin,
     hex_to_bin, octal_to_bin,
 )
 
@@ -181,7 +181,7 @@ class InstructionToken(Token):
         return True
 
     def get_funct7(self) -> Bitx7:
-        h7b = lambda s:hex_to_bin(s, 7)
+        h7b = lambda s: hex_to_bin(s, 7)
         match self.instruction:
             case "add"|"xor"|"or"|"and"|"sll"|"srl"|"slt"|"sltu":
                 return h7b("00")
@@ -216,25 +216,25 @@ class InstructionToken(Token):
         match self.instruction:
             case "add"|"sub"|"xor"|"or"|"and"|"sll"|"srl"|"sra"|"slt"|"sltu"\
                 |"mul"|"mulh"|"mulsu"|"mulu"|"div"|"divu"|"rem"|"remu":
-                return bin_str_to_bits("0110011")
+                return hex_to_bin("33", 7)
             case "addi"|"xori"|"ori"|"andi"|"slli"|"srli"|"srai"|"slti"|"sltiu":
-                return bin_str_to_bits("0010011")
+                return hex_to_bin("13", 7)
             case "lb"|"lh"|"lw"|"lbu"|"lhu":
-                return bin_str_to_bits("0000011")
+                return hex_to_bin("03", 7)
             case "sb"|"sh"|"sw":
-                return bin_str_to_bits("0100011")
+                return hex_to_bin("23", 7)
             case "beq"|"bne"|"blt"|"bge"|"bltu"|"bgeu":
-                return bin_str_to_bits("1100011")
+                return hex_to_bin("63", 7)
             case "jal":
-                return bin_str_to_bits("1101111")
+                return hex_to_bin("6F", 7)
             case "jalr":
-                return bin_str_to_bits("1100111")
+                return hex_to_bin("67", 7)
             case "lui":
-                return bin_str_to_bits("0110111")
+                return hex_to_bin("37", 7)
             case "auipc":
-                return bin_str_to_bits("0010111")
+                return hex_to_bin("17", 7)
             case "ecall"|"ebreak":
-                return bin_str_to_bits("1110011")
+                return hex_to_bin("73", 7)
 
         raise SyntaxError(f"instruction '{self.instruction}' does not have a specified opcode")
     
@@ -278,29 +278,35 @@ class InstructionToken(Token):
             case InsTyp.R:
                 # no immediate
                 big_endian_code = tuple([*self.get_funct7(), *self.reg_to_bin(self.rs2), *self.reg_to_bin(self.rs1), *self.get_funct3(), *self.reg_to_bin(self.rd), *self.get_opcode()])
-                return hex_endian_swap(bin_to_hex(big_endian_code))
+                instr_value = bits_to_uint32(big_endian_code)
+                return f"{instr_value.to_bytes(4, "little").hex().upper()}"
             case InsTyp.I:
                 # imm[11:0], rs1, funct3, rd, opcode
                 imm = self.get_imm(label_lookup)
                 big_endian_code = tuple([*imm[0:12], *self.reg_to_bin(self.rs1), *self.get_funct3(), *self.reg_to_bin(self.rd), *self.get_opcode()])
-                return hex_endian_swap(bin_to_hex(big_endian_code))
+                instr_value = bits_to_uint32(big_endian_code)
+                return f"{instr_value.to_bytes(4, "little").hex().upper()}"
             case InsTyp.S:
                 # 
                 imm = self.get_imm(label_lookup)
                 big_endian_code = tuple([*imm[5:12], *self.reg_to_bin(self.rs2), *self.reg_to_bin(self.rs1), *self.get_funct3(), *imm[0:5], *self.get_opcode()])
-                return hex_endian_swap(bin_to_hex(big_endian_code))
+                instr_value = bits_to_uint32(big_endian_code)
+                return f"{instr_value.to_bytes(4, "little").hex().upper()}"
             case InsTyp.B:
                 # 
                 imm = self.get_imm(label_lookup)
                 big_endian_code = tuple([imm[12], *imm[5:11], *self.reg_to_bin(self.rs2), *self.reg_to_bin(self.rs1), *self.get_funct3(), *imm[1:5], imm[11], *self.get_opcode()])
-                return hex_endian_swap(bin_to_hex(big_endian_code))
+                instr_value = bits_to_uint32(big_endian_code)
+                return f"{instr_value.to_bytes(4, "little").hex().upper()}"
             case InsTyp.U:
                 # 
                 imm = self.get_imm(label_lookup)
                 big_endian_code = tuple([*imm[12:32], *self.reg_to_bin(self.rd), *self.get_opcode()])
-                return hex_endian_swap(bin_to_hex(big_endian_code))
+                instr_value = bits_to_uint32(big_endian_code)
+                return f"{instr_value.to_bytes(4, "little").hex().upper()}"
             case InsTyp.J:
                 # 
                 imm = self.get_imm(label_lookup)
                 big_endian_code = tuple([imm[20], *imm[1:11], imm[11], *imm[12:20], *self.reg_to_bin(self.rd), *self.get_opcode()])
-                return hex_endian_swap(bin_to_hex(big_endian_code))
+                instr_value = bits_to_uint32(big_endian_code)
+                return f"{instr_value.to_bytes(4, "little").hex().upper()}"
