@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 from memory import (
     Bit, Bitx10, Bitx12, Bitx2, Bitx20, Bitx3, Bitx32, Bitx4, Bitx5, Bitx6, Bitx7, Bitx8,
-    bin_str_to_bits, hex_big_to_little_endian, bin_to_hex, dec_to_bin,
+    bin_str_to_bits, bin_to_dec, hex_big_to_little_endian, bin_to_hex, dec_to_bin,
     hex_to_bin, octal_to_bin,
 )
 
@@ -44,24 +44,6 @@ class Token:
                 raise SyntaxError(f"{name} is not within the inclusive range of 0 to 31")
         except ValueError:
             raise SyntaxError(f"{name} is not a valid register")
-        
-@dataclass
-class InstructionData:
-    opcode:Bitx7 = None
-    funct3:Bitx3 = None
-    funct7:Bitx7 = None
-    imm_i_0_11:Bitx12 = None
-    imm_s_0_4:Bitx5 = None
-    imm_s_5_11:Bitx7 = None
-    imm_b_1_4:Bitx4 = None
-    imm_b_11:Bit = None # this is the 11th bit of the immediate
-    imm_b_5_10:Bitx6 = None
-    imm_b_12:Bit = None
-    imm_u_12_31:Bitx20 = None
-    imm_j_12_19:Bitx8 = None
-    imm_j_11:Bit = None
-    imm_j_1_10:Bitx10 = None
-    imm_j_20:Bit = None
 
 R_type_instructions:set[str] = {"add", "sub", "and", "or", "xor", "sll", "srl", "sra"}
 I_type_instructions:set[str] = {"addi", "lw", "jalr"}
@@ -110,21 +92,12 @@ class LabelToken(Token):
     token_type = TokenType.LABEL
     name:str
     address:Bitx32
-    label_lookup:dict[str, LabelToken] = {}
+    address_dec:int
 
-    def __init__(self, name:str, address:Bitx32):
+    def __init__(self, name:str, address:int|Bitx32):
         self.name = name
-        self.address = address
-
-    @classmethod
-    def clear_label_lookup(cls):
-        cls.label_lookup = {}
-    
-    @classmethod
-    def get_label(cls, label:str) -> LabelToken:
-        if label not in cls.label_lookup:
-            raise SyntaxError(f"Reference to non-existant label {label} found")
-        return cls.label_lookup[label]
+        self.address = dec_to_bin(address, 32) if isinstance(address, int) else address
+        self.address_dec = address if isinstance(address, int) else bin_to_dec(address)
 
 
 class InstructionToken(Token):
@@ -135,14 +108,18 @@ class InstructionToken(Token):
     rs2:str
     rd:str
     immediate:str
+    address:Bitx32
+    address_dec:int
 
-    def __init__(self, instruction:str = None, rd:str = None, rs1:str = None, rs2:str = None, immediate:str = None):
+    def __init__(self, address:int|Bitx32, instruction:str = None, rd:str = None, rs1:str = None, rs2:str = None, immediate:str = None):
         self.instruction = instruction
         self.rs1 = rs1
         self.rs2 = rs2
         self.rd = rd
         self.immediate = immediate
         self.instruction_type = InstructionType.get_instruction_type(self.instruction)
+        self.address = dec_to_bin(address, 32) if isinstance(address, int) else address
+        self.address_dec = address if isinstance(address, int) else bin_to_dec(address)
 
     def get_funct7(self) -> Bitx7:
         h7b = lambda s:hex_to_bin(s, 7)
