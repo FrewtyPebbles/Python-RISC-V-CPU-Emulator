@@ -111,3 +111,9 @@ def or3_gate(a: Bit, b: Bit, c: Bit, power: Bit = None) -> Bit:
     """
     power = power if power is not None else Bit(True)
     return or_gate(or_gate(a, b, power), c, power)
+
+def high_level_mux(in_0:tuple[Bit,...], in_1:tuple[Bit,...], control_bit:Bit) -> tuple[Bit,...]:
+    if control_bit:
+        return in_1
+    else:
+        return in_0

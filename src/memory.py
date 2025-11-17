@@ -47,6 +47,9 @@ Bitx10 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
 Bitx11 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
 Bitx12 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
 Bitx13 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
+Bitx14 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
+Bitx15 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
+Bitx16 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
 Bitx20 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
 
 class Byte:

@@ -18,14 +18,14 @@ class InstructionMemory:
     def __init__(self):
         self.memory = []
 
-    def load(self, hex_data:str):
+    def load(self, hex_data:list[str]):
         self.memory = []
-        for i_n, instr_hex in enumerate(hex_data.splitlines()):
-            instr_hex = hex_endian_swap(instr_hex)
-            self.memory.append(hex_to_bin(i_n))
+        for instr_hex in hex_data:
+            self.memory.append(hex_to_bin(instr_hex, 32))
             
 
     def get_instruction(self, address:Bitx32) -> Bitx32:
         dec_addr = bin_to_dec(address)
-        
-        return self.memory[dec_addr]
+        if dec_addr < len(self.memory):
+            return self.memory[dec_addr]
+        return None
