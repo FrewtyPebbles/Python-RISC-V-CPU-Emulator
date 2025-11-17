@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 from memory import (
     Bit, Bitx10, Bitx12, Bitx2, Bitx20, Bitx3, Bitx32, Bitx4, Bitx5, Bitx6, Bitx7, Bitx8,
-    bin_str_to_bits, bin_to_dec, bits_to_uint32, dec_to_bin_signed, hex_endian_swap, bin_to_hex, dec_to_bin,
+    bin_str_to_bits, bin_to_dec, bits_to_hex_little_endian, bits_to_uint32, dec_to_bin_signed, hex_endian_swap, bin_to_hex, dec_to_bin,
     hex_to_bin, octal_to_bin,
 )
 
@@ -274,39 +274,82 @@ class InstructionToken(Token):
             
 
     def to_hex(self, label_lookup:dict[str, LabelToken]) -> str:
+        """
+        Build the 32-bit instruction as a LSB-first tuple of Bit objects,
+        then convert with bits_to_hex_little_endian.
+        """
         match self.instruction_type:
             case InsTyp.R:
-                # no immediate
-                big_endian_code = tuple([*self.get_funct7(), *self.reg_to_bin(self.rs2), *self.reg_to_bin(self.rs1), *self.get_funct3(), *self.reg_to_bin(self.rd), *self.get_opcode()])
-                instr_value = bits_to_uint32(big_endian_code)
-                return f"{instr_value.to_bytes(4, "little").hex().upper()}"
+                # LSB-first: opcode, rd, funct3, rs1, rs2, funct7
+                bits = tuple([
+                    *self.get_opcode(),
+                    *self.reg_to_bin(self.rd),
+                    *self.get_funct3(),
+                    *self.reg_to_bin(self.rs1),
+                    *self.reg_to_bin(self.rs2),
+                    *self.get_funct7()
+                ])
+                return bin_to_hex(bits)
+
             case InsTyp.I:
-                # imm[11:0], rs1, funct3, rd, opcode
+                # LSB-first: opcode, rd, funct3, rs1, imm[0:12]
                 imm = self.get_imm(label_lookup)
-                big_endian_code = tuple([*imm[0:12], *self.reg_to_bin(self.rs1), *self.get_funct3(), *self.reg_to_bin(self.rd), *self.get_opcode()])
-                instr_value = bits_to_uint32(big_endian_code)
-                return f"{instr_value.to_bytes(4, "little").hex().upper()}"
+                bits = tuple([
+                    *self.get_opcode(),
+                    *self.reg_to_bin(self.rd),
+                    *self.get_funct3(),
+                    *self.reg_to_bin(self.rs1),
+                    *imm[0:12]
+                ])
+                return bin_to_hex(bits)
+
             case InsTyp.S:
-                # 
+                # LSB-first: opcode, imm[0:5], funct3, rs1, rs2, imm[5:12]
                 imm = self.get_imm(label_lookup)
-                big_endian_code = tuple([*imm[5:12], *self.reg_to_bin(self.rs2), *self.reg_to_bin(self.rs1), *self.get_funct3(), *imm[0:5], *self.get_opcode()])
-                instr_value = bits_to_uint32(big_endian_code)
-                return f"{instr_value.to_bytes(4, "little").hex().upper()}"
+                bits = tuple([
+                    *self.get_opcode(),
+                    *imm[0:5],
+                    *self.get_funct3(),
+                    *self.reg_to_bin(self.rs1),
+                    *self.reg_to_bin(self.rs2),
+                    *imm[5:12]
+                ])
+                return bin_to_hex(bits)
+
             case InsTyp.B:
-                # 
+                # LSB-first: opcode, imm[11], imm[1:5], funct3, rs1, rs2, imm[5:11], imm[12]
                 imm = self.get_imm(label_lookup)
-                big_endian_code = tuple([imm[12], *imm[5:11], *self.reg_to_bin(self.rs2), *self.reg_to_bin(self.rs1), *self.get_funct3(), *imm[1:5], imm[11], *self.get_opcode()])
-                instr_value = bits_to_uint32(big_endian_code)
-                return f"{instr_value.to_bytes(4, "little").hex().upper()}"
+                bits = tuple([
+                    *self.get_opcode(),
+                    imm[11],
+                    *imm[1:5],
+                    *self.get_funct3(),
+                    *self.reg_to_bin(self.rs1),
+                    *self.reg_to_bin(self.rs2),
+                    *imm[5:11],
+                    imm[12]
+                ])
+                return bin_to_hex(bits)
+
             case InsTyp.U:
-                # 
+                # LSB-first: opcode, rd, imm[12:32]
                 imm = self.get_imm(label_lookup)
-                big_endian_code = tuple([*imm[12:32], *self.reg_to_bin(self.rd), *self.get_opcode()])
-                instr_value = bits_to_uint32(big_endian_code)
-                return f"{instr_value.to_bytes(4, "little").hex().upper()}"
+                bits = tuple([
+                    *self.get_opcode(),
+                    *self.reg_to_bin(self.rd),
+                    *imm[12:32]
+                ])
+                return bin_to_hex(bits)
+
             case InsTyp.J:
-                # 
+                # LSB-first: opcode, rd, imm[12:20], imm[11], imm[1:11], imm[20]
                 imm = self.get_imm(label_lookup)
-                big_endian_code = tuple([imm[20], *imm[1:11], imm[11], *imm[12:20], *self.reg_to_bin(self.rd), *self.get_opcode()])
-                instr_value = bits_to_uint32(big_endian_code)
-                return f"{instr_value.to_bytes(4, "little").hex().upper()}"
+                bits = tuple([
+                    *self.get_opcode(),
+                    *self.reg_to_bin(self.rd),
+                    *imm[12:20],
+                    imm[11],
+                    *imm[1:11],
+                    imm[20]
+                ])
+                return bin_to_hex(bits)
