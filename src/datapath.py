@@ -46,22 +46,22 @@ class Datapath:
         if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx20)):
           raise TypeError("Invalid input type") 
       #memory
-      case ["lw", input1, input2]:
+      case ["lw", input1, input2, input3]:
         """
         input1 is a register
-        input2 is an offset of a register, formatted offset(register)
+        input2 and 3 is an offset of a register, register in 2, offset in 3
         This loads from offset+register into input1
         """
         if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx32)):
           raise TypeError("Invalid input type") 
-      case ["sw", input1, input2]:
+      case ["sw", input1, input2, input3]:
         """
         input1 is a register
-        input2 is an offset of a register, formatted offset(register)
+        input2 and 3 is an offset of a register, register in 2, offset in 3
         This stores a word from input1 into offset+register
         """
         if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx32)):
-          raise TypeError("Invalid input type") #we need a good way to represent the offset(register), perhaps a 2-tuple
+          raise TypeError("Invalid input type") 
       #control
       case ["jal", input1, input2]:
         """
