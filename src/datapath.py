@@ -17,6 +17,7 @@ class Datapath:
   fpu:FPU32
   program_counter:PC
   reg_file:RegisterFile
+  ALL_ZERO_X32 = Bitx32(Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0),Bit(0))
   
   def __init__(self, memory_unit, fpu32):
     self.mu = memory_unit
