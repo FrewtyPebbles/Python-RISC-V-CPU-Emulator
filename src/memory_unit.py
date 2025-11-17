@@ -89,7 +89,7 @@ class MemoryUnit:
     
     elif opcode == (1,1,0,1,1,1,1): #only instruction in the set with this opcode
       rd = instruction[7][11]
-      imm = instruction[12][19] #this one needs to be checked with regards to the j-type imm formatting
+      imm = instruction[12][31] 
       return "jal", rd, imm
     
     else: #triggers default case in datapath, meaning "instruction not found"
