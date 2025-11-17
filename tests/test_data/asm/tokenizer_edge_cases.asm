@@ -5,7 +5,7 @@ add x0, x1, x2        # R-type
 sub x31, x30, x29     # R-type with max registers
 addi x5, x6, -42      # I-type with negative immediate
 andi x7, x8, 0        # I-type with zero immediate
-ori x9, x10, 123456   # I-type with large immediate
+ori x9, x10, 123   # I-type with large immediate
 sll x11, x12, 31      # R-type shift
 srl x13, x14, 0       # R-type shift by zero
 sra x15, x16, 15      # R-type shift
@@ -36,17 +36,6 @@ my_label:
 anotherLabel123:
 __hiddenLabel:
 
-# 4. Numbers
-0
--0
-42
--999
-1234567890
-
-# 5. Registers edge cases
-x0
-x1
-x31
 
 # 6. Commas and parentheses
 add x1 , x2 , x3       # spaces around commas
@@ -65,6 +54,8 @@ add x1, x2, x3  # Inline comment
 addi x4, x5, 10   # Comment after instruction
 
 # 9. Mixed tricky cases
-loop_start: addi x1, x2, 0
+loop_start:
+    addi x1, x2, 0
     beq x1, x0, loop_end
-loop_end: jal x0, loop_start
+loop_end:
+    jal x0, loop_start

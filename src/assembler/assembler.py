@@ -1,4 +1,4 @@
-from instructions import LabelToken, DirectiveToken, InstructionToken
+from assembler.instructions import LabelToken, DirectiveToken, InstructionToken, Token
 from memory import dec_to_bin
 
 class Assembler:
@@ -40,13 +40,15 @@ class Assembler:
         pc = start_address
         label_table = self.parse_labels(start_address)
 
+        tokens:list[Token] = []
+
         for line in self.asm.splitlines():
             line = line.split('#', 1)[0].strip()
             if not line or line.startswith('#') or line.endswith(":"):
                 continue  # skip empty lines/comments
             
             if line.startswith("."):
-                self.parse_directive(line)
+                tokens.append(self.parse_directive(line))
                 if any([line.startswith(prefix) for prefix in [
                     ".globl", ".section", ".text", ".data", ".bss"
                 ]]):
@@ -56,9 +58,19 @@ class Assembler:
                     continue
 
             # Parse instruction
+            tokens.append(self.parse_instruction(line, pc))
+
+        gen_code:list[str] = []
+
+        for token in tokens:
+            if token.does_codegen():
+                gen_code.append(token.to_hex(label_table))
+
+        return gen_code
 
 
-    def parse_directive(line: str) -> DirectiveToken:
+
+    def parse_directive(self, line: str) -> DirectiveToken:
         line = line.strip()
         
         parts = line.split(maxsplit=1)
@@ -69,14 +81,14 @@ class Assembler:
         
         return DirectiveToken(directive_name, *args)
 
-    def parse_instruction(line: str) -> InstructionToken:
+    def parse_instruction(self, line: str, pc:int) -> InstructionToken:
         # TODO
-        # Split mnemonic and arguments
+        # Split instruction name and arguments
         parts = line.split(maxsplit=1)
-        mnemonic = parts[0]  # e.g., "addi"
+        instruction = parts[0]  # e.g., "addi"
         args_str = parts[1] if len(parts) > 1 else ""
         
         # Split arguments by comma and strip whitespace
         args = [arg.strip() for arg in args_str.split(',')] if args_str else []
         
-        
+        return InstructionToken(pc, instruction, *args)

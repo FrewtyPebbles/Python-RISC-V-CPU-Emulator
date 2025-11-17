@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 from memory import (
     Bit, Bitx10, Bitx12, Bitx2, Bitx20, Bitx3, Bitx32, Bitx4, Bitx5, Bitx6, Bitx7, Bitx8,
-    bin_str_to_bits, bin_to_dec, hex_endian_swap, bin_to_hex, dec_to_bin,
+    bin_str_to_bits, bin_to_dec, dec_to_bin_signed, hex_endian_swap, bin_to_hex, dec_to_bin,
     hex_to_bin, octal_to_bin,
 )
 
@@ -21,9 +21,13 @@ class Token:
     This contains logic for converting instructions into hex.
     """
     token_type:TokenType
+    
     @abstractmethod
-    def to_hex(self) -> str:
+    def to_hex(self, label_lookup:dict[str, LabelToken]) -> str:
         pass
+
+    def does_codegen(self) -> bool:
+        return False
     
     @staticmethod
     def is_int_reg(name:str) -> bool:
@@ -45,10 +49,10 @@ class Token:
         except ValueError:
             raise SyntaxError(f"{name} is not a valid register")
 
-R_type_instructions:set[str] = {"add", "sub", "and", "or", "xor", "sll", "srl", "sra"}
-I_type_instructions:set[str] = {"addi", "lw", "jalr"}
-S_type_instructions:set[str] = {"sw"}
-B_type_instructions:set[str] = {"beq", "bne"}
+R_type_instructions:set[str] = {"add", "sub", "and", "or", "xor", "sll", "srl", "sra", "slt", "sltu", "mul", "mulh", "mulsu", "mulu", "div","divu", "rem", "remu"}
+I_type_instructions:set[str] = {"addi", "lw", "jalr", "xori", "ori", "andi","slli","srli", "srai", "slti", "sltiu", "lb", "lh", "lw", "lbu", "lhu", "jalr", "ecall", "ebreak"}
+S_type_instructions:set[str] = {"sw", "sb", "sh"}
+B_type_instructions:set[str] = {"beq", "bne", "blt", "bge", "bltu", "bgeu"}
 U_type_instructions:set[str] = {"lui", "auipc"}
 J_type_instructions:set[str] = {"jal"}
 
@@ -82,10 +86,21 @@ class DirectiveToken(Token):
     token_type = TokenType.DIRECTIVE
     directive:str
     arguments:list[str]
-    
+    code_gen_directives:set[str] = {
+        ".byte", ".half", ".word", ".ascii", ".ascii", ".asciz",
+        ".string", ".word", ".float", ".double", ".align"
+    }
+
     def __init__(self, directive:str, *arguments:list[str]):
         self.directive = directive
         self.arguments = arguments
+
+    def does_codegen(self) -> bool:
+        return self.directive in self.code_gen_directives
+
+    def to_hex(self, label_lookup:dict[str, LabelToken]) -> str:
+        # TODO
+        return bin_to_hex(bin_str_to_bits("0"*32))
 
 
 class LabelToken(Token):
@@ -111,15 +126,59 @@ class InstructionToken(Token):
     address:Bitx32
     address_dec:int
 
-    def __init__(self, address:int|Bitx32, instruction:str = None, rd:str = None, rs1:str = None, rs2:str = None, immediate:str = None):
+    def __init__(self, address:int|Bitx32, instruction:str = None, *args:list[str]):
         self.instruction = instruction
+        self.instruction_type = InstructionType.get_instruction_type(self.instruction)
+        rd, rs1, rs2, immediate = None, None, None, None
+        match self.instruction_type:
+            case InsTyp.R:
+                rd = args[0]
+                rs1 = args[1]
+                rs2 = args[2]
+                immediate = None
+            case InsTyp.I:
+                rd = args[0]
+                immediate, rs1 = self.separate_imm_offset(args[1])
+                if len(args) > 2:
+                    immediate = args[2]
+            case InsTyp.S:
+                rd = None
+                immediate, rs1 = self.separate_imm_offset(args[1])
+                rs2 = args[0]
+            case InsTyp.B:
+                rd = None
+                rs1 = args[0]
+                rs2 = args[1]
+                immediate = args[2]
+            case InsTyp.U|InsTyp.J:
+                rd = args[0]
+                rs1 = None
+                rs2 = None
+                immediate = args[1]
+
         self.rs1 = rs1
         self.rs2 = rs2
         self.rd = rd
         self.immediate = immediate
-        self.instruction_type = InstructionType.get_instruction_type(self.instruction)
         self.address = dec_to_bin(address, 32) if isinstance(address, int) else address
         self.address_dec = address if isinstance(address, int) else bin_to_dec(address)
+
+    def separate_imm_offset(self, imm:str) -> tuple[str, str]:
+        """
+        returns immediate, read_reg
+        """
+        if "(" in imm and ")" in imm:
+            parts = imm.split("(")
+            reg = parts[1][:-1]
+            return parts[0], reg
+        else:
+            if self.is_int_reg(imm):
+                return None, imm
+            else:
+                return imm, None
+            
+    def does_codegen(self) -> bool:
+        return True
 
     def get_funct7(self) -> Bitx7:
         h7b = lambda s:hex_to_bin(s, 7)
@@ -130,6 +189,7 @@ class InstructionToken(Token):
                 return h7b("20")
             case "mul"|"mulh"|"mulsu"|"mulu"|"div"|"divu"|"rem"|"remu":
                 return h7b("01")
+        raise SyntaxError(f"instruction '{self.instruction}' does not have a specified funct7")
             
     def get_funct3(self) -> Bitx3:
         h3b = lambda s:hex_to_bin(s, 3)
@@ -150,6 +210,7 @@ class InstructionToken(Token):
                 return h3b("6")
             case "and"|"andi"|"bgeu"|"remu":
                 return h3b("7")
+        raise SyntaxError(f"instruction '{self.instruction}' does not have a specified funct3")
 
     def get_opcode(self) -> Bitx7:
         match self.instruction:
@@ -177,60 +238,69 @@ class InstructionToken(Token):
 
         raise SyntaxError(f"instruction '{self.instruction}' does not have a specified opcode")
     
-    def get_imm(self, octal_enabled:bool = True) -> tuple[Bit,...]:
+    def get_imm(self, label_lookup: dict[str, 'LabelToken'], octal_enabled: bool = True) -> tuple[Bit, ...]:
+        # R-type has no immediate
         if self.instruction_type == InsTyp.R:
             return None
-        
-        length = (12, 12, 12, 20, 20)[self.instruction_type.value]
 
-        if self.immediate == None:
-            return bin_str_to_bits("0"*length)
-        
-        # parse the immediate string into binary
-        lead:str = self.immediate[:2].lower()
-        if lead == "0x":
-            ## Hex
-            return hex_to_bin(self.immediate, length)
-        elif lead[0] == "0" and octal_enabled:
-            ## Octal
-            return octal_to_bin(self.immediate, length)
-        elif lead[0] == "0":
-            ## Not octal because disabled so it is decimal
-            zeros_stripped = self.immediate.lstrip("0")
-            return dec_to_bin(int(zeros_stripped), length)
-        elif lead[1].isalpha():
-            ## Label
-            return LabelToken.get_label(self.immediate).address
+        length = 32  # always return 32 bits for slicing convenience
+
+        # Default immediate is zero
+        if self.immediate is None:
+            return tuple(Bit(False) for _ in range(length))
+
+        imm_str = self.immediate.strip().lower()
+
+        # --- Parse the immediate ---
+        if imm_str.startswith("0x"):
+            # Hexadecimal
+            value = int(imm_str, 16)
+        elif imm_str.startswith("0") and octal_enabled and len(imm_str) > 1:
+            # Octal
+            value = int(imm_str, 8)
+        elif imm_str.startswith("0") and len(imm_str) > 1:
+            # Leading zero but octal disabled → decimal
+            value = int(imm_str.lstrip("0"), 10)
+        elif imm_str in label_lookup:
+            # Label
+            value = label_lookup[imm_str].address_dec
+        else:
+            # Decimal signed
+            value = int(imm_str, 10)
+
+        # --- Convert to 32-bit tuple LSB-first ---
+        bits = tuple(Bit((value >> i) & 1) for i in range(length))
+        return bits
             
 
-    def to_hex(self) -> str:
+    def to_hex(self, label_lookup:dict[str, LabelToken]) -> str:
         match self.instruction_type:
             case InsTyp.R:
                 # no immediate
-                big_endian_code = tuple(*self.get_funct7(), *self.reg_to_bin(self.rs2), *self.reg_to_bin(self.rs1), *self.get_funct3(), *self.reg_to_bin(self.rd), *self.get_opcode())
+                big_endian_code = tuple([*self.get_funct7(), *self.reg_to_bin(self.rs2), *self.reg_to_bin(self.rs1), *self.get_funct3(), *self.reg_to_bin(self.rd), *self.get_opcode()])
                 return hex_endian_swap(bin_to_hex(big_endian_code))
             case InsTyp.I:
                 # imm[11:0], rs1, funct3, rd, opcode
-                imm = self.get_imm()
-                big_endian_code = tuple(*imm[0:12], *self.reg_to_bin(self.rs1), *self.get_funct3(), *self.reg_to_bin(self.rd), *self.get_opcode())
+                imm = self.get_imm(label_lookup)
+                big_endian_code = tuple([*imm[0:12], *self.reg_to_bin(self.rs1), *self.get_funct3(), *self.reg_to_bin(self.rd), *self.get_opcode()])
                 return hex_endian_swap(bin_to_hex(big_endian_code))
             case InsTyp.S:
                 # 
-                imm = self.get_imm()
-                big_endian_code = tuple(*imm[5:12], *self.reg_to_bin(self.rs2), *self.reg_to_bin(self.rs1), *self.get_funct3(), *imm[0:5], *self.get_opcode())
+                imm = self.get_imm(label_lookup)
+                big_endian_code = tuple([*imm[5:12], *self.reg_to_bin(self.rs2), *self.reg_to_bin(self.rs1), *self.get_funct3(), *imm[0:5], *self.get_opcode()])
                 return hex_endian_swap(bin_to_hex(big_endian_code))
             case InsTyp.B:
                 # 
-                imm = self.get_imm()
-                big_endian_code = tuple(imm[12], *imm[5:11], *self.reg_to_bin(self.rs2), *self.reg_to_bin(self.rs1), *self.get_funct3(), *imm[1:5], imm[11], *self.get_opcode())
+                imm = self.get_imm(label_lookup)
+                big_endian_code = tuple([imm[12], *imm[5:11], *self.reg_to_bin(self.rs2), *self.reg_to_bin(self.rs1), *self.get_funct3(), *imm[1:5], imm[11], *self.get_opcode()])
                 return hex_endian_swap(bin_to_hex(big_endian_code))
             case InsTyp.U:
                 # 
-                imm = self.get_imm()
-                big_endian_code = tuple(*imm[12:32], *self.reg_to_bin(self.rd), *self.get_opcode())
+                imm = self.get_imm(label_lookup)
+                big_endian_code = tuple([*imm[12:32], *self.reg_to_bin(self.rd), *self.get_opcode()])
                 return hex_endian_swap(bin_to_hex(big_endian_code))
             case InsTyp.J:
                 # 
-                imm = self.get_imm()
-                big_endian_code = tuple(imm[20], *imm[1:11], imm[11], *imm[12:20], *self.reg_to_bin(self.rd), *self.get_opcode())
+                imm = self.get_imm(label_lookup)
+                big_endian_code = tuple([imm[20], *imm[1:11], imm[11], *imm[12:20], *self.reg_to_bin(self.rd), *self.get_opcode()])
                 return hex_endian_swap(bin_to_hex(big_endian_code))

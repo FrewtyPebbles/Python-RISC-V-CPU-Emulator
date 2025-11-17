@@ -155,6 +155,21 @@ def dec_to_bin(value: int, size: int) -> tuple[Bit, ...]:
         value >>= 1
     return tuple(bits)  # LSB first
 
+def dec_to_bin_signed(value: int, size: int) -> tuple[Bit, ...]:
+    min_val = -(1 << (size - 1))
+    max_val = (1 << (size - 1)) - 1
+    if not (min_val <= value <= max_val):
+        raise ValueError(f"Value {value} cannot be represented in {size} bits.")
+
+    if value < 0:
+        value = (1 << size) + value
+
+    bits = []
+    for _ in range(size):
+        bits.append(Bit(value & 1))
+        value >>= 1
+    return tuple(bits)
+
 def bin_to_dec(bits: Iterable[Bit]) -> int:
     value = 0
     for i, b in enumerate(bits):
