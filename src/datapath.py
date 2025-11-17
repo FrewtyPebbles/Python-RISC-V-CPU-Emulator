@@ -9,7 +9,6 @@ from alu import ALU32
 from fpu import FPU32
 from register_file import RegisterFile
 from instruction_memory import PC, InstructionMemory
-from encoder_decoder import 
 
 class Datapath:
   mu:memory_unit
