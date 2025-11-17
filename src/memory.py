@@ -276,3 +276,6 @@ def bits_to_hex_little_endian(bits: tuple[Bit, ...]) -> str:
 
     # Now swap bytes for file output
     return hex_endian_swap(hex_be)
+
+def bits_to_10_tup(bits:tuple[Bit,...]) -> tuple[Literal[1]|Literal[0],...]:
+    return tuple([1 if bit else 0 for bit in bits])
