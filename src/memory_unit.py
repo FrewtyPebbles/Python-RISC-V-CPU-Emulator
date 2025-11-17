@@ -34,6 +34,8 @@ class MemoryUnit:
           return "sra", rd, rs1, rs2
         else:
           return self.FAIL_TUPLE
+      elif funct3 == (0,0,1):
+        return "sll", rd, rs1, rs2
       elif funct3 == (1,0,0): #can only be xor
         return "xor", rd, rs1, rs2
       elif funct3 == (1,1,0): #can only be or
