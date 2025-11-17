@@ -27,10 +27,20 @@ class MemoryUnit:
           return "sub", arguments
         else:
           return self.FAIL_TUPLE
-      if funct3 == (1,0,1): #srl or sra, use funct7
+      elif funct3 == (1,0,1): #srl or sra, use funct7
         funct7 = instruction[25][31]
-
-
+        if funct7 == (0,0,0,0,0,0,0):
+          return "srl", arguments
+        elif funct7 == (0,1,0,0,0,0,0):
+          return "sra", arguments
+        else:
+          return self.FAIL_TUPLE
+      elif funct3 == (1,0,0): #can only be xor
+        return "xor", arguments
+      elif funct3 == (1,1,0): #can only be or
+        return "or", arguments
+      elif funct3 == (1,1,1): #can only be and
+        return "and", arguments
 
     elif opcode == (1,1,0,0,0,1,1): #Type B, needs further investigation
       funct3 = instruction[12][14] #use funct3 to identify
@@ -56,6 +66,18 @@ class MemoryUnit:
     elif opcode == (0,1,0,0,0,1,1): #only instruction in the set with this opcode
 
       return "sw", arguments
+    
+    elif opcode == (0,1,1,0,1,1,1): #only instruction in the set with this opcode
+
+      return "lui", arguments
+    
+    elif opcode == (0,0,1,0,1,1,1): #only instruction in the set with this opcode
+
+      return "auipc", arguments
+    
+    elif opcode == (1,1,0,1,1,1,1): #only instruction in the set with this opcode
+
+      return "jal", arguments
     
     else: #triggers default case in datapath, meaning "instruction not found"
       return self.FAIL_TUPLE 
