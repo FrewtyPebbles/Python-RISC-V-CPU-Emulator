@@ -4,37 +4,59 @@ It contains instructions stored in read-only memory, which it knows by address
 It takes in an address and outputs an instruction
 """
 
-from memory import Bit, Bitx32, Byte, Memory, bin_str_to_bits
+from memory import Bit, Bitx4, Bitx7, Bitx32, bin_str_to_bits
 from encoder_decoder import one_hot_to_decimal
 
 class MemoryUnit:
-  instructions:list[str] =  [
-      #arithmetic
-      "add",
-      "sub",
-      "addi",
-      #logical
-      "and",
-      "or",
-      "xor",
-      #shifts
-      "sll",
-      "srl",
-      "sra",
-      #memory
-      "lw",
-      "sw",
-      #control
-      "beq",
-      "bne",
-      "jal",
-      "jalr",
-      #immediate/utility
-      "lui",
-      "auipc"    
+  FAIL_TUPLE = (1, 2, 3)
+  #Note: The use of (1, 2, 3) is just an arbitrary tuple that will fail to trigger an erroneous instruction
+
+  instructions:dict =  [
+    
   ]
 
-  def get_instruction(self, address:Bitx32) -> str:
-    if address not in self.instructions:
-      raise IndexError("Address not found")
-    return self.instructions[one_hot_to_decimal(address)]
+  def get_instruction(self, instruction:Bitx32) -> tuple:
+    opcode = instruction[0][6]
+    if opcode == (0,1,1,0,0,1,1): #Type R, needs further investigation
+      funct3 = instruction[12][14] #use funct3 to identify 
+      if funct3 == (0,0,0): #add or sub, use funct7
+        funct7 = instruction[25][31]
+        if funct7 == (0,0,0,0,0,0,0): 
+          return "add", arguments
+        elif funct7 == (0,1,0,0,0,0,0):
+          return "sub", arguments
+        else:
+          return self.FAIL_TUPLE
+      if funct3 == (1,0,1): #srl or sra, use funct7
+        funct7 = instruction[25][31]
+
+
+
+    elif opcode == (1,1,0,0,0,1,1): #Type B, needs further investigation
+      funct3 = instruction[12][14] #use funct3 to identify
+      if funct3 == (0,0,0): 
+        return "beq", arguments
+      elif funct3 == (0,0,1):
+        return "bne", arguments
+      else:
+        return self.FAIL_TUPLE
+
+    elif opcode == (0,0,1,0,0,1,1): #only instruction in the set with this opcode
+
+      return "addi", arguments 
+    
+    elif opcode == (0,0,0,0,0,1,1): #only instruction in the set with this opcode
+
+      return "lw", arguments
+    
+    elif opcode == (1,1,0,0,1,1,1): #only instruction in the set with this opcode
+
+      return "jalr", arguments
+    
+    elif opcode == (0,1,0,0,0,1,1): #only instruction in the set with this opcode
+
+      return "sw", arguments
+    
+    else: #triggers default case in datapath, meaning "instruction not found"
+      return self.FAIL_TUPLE 
+    
