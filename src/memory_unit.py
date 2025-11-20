@@ -13,10 +13,10 @@ class MemoryUnit:
 
   def get_instruction(self, instruction:Bitx32) -> tuple:
     opcode = bits_to_10_tup(instruction[0][6])
-    rd = instruction[7][11]
-    rs1 = instruction[15][19]    #these three are the addresses of the write, read1, and read2 registers
-    rs2 = instruction[20][24]
     if opcode == (0,1,1,0,0,1,1): #Type R, needs further investigation
+      rd = instruction[7][11]
+      rs1 = instruction[15][19]    #these three are the addresses of the write, read1, and read2 registers
+      rs2 = instruction[20][24]
       funct3 = bits_to_10_tup(instruction[12][14]) #use funct3 to identify 
       if funct3 == (0,0,0): #add or sub, use funct7
         funct7 = bits_to_10_tup(instruction[25][31])
