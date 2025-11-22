@@ -4,7 +4,7 @@ from alu import ALU32
 from fpu import FPU32
 from memory import Bit, Bitx16, Bitx6, bin_str_to_bits, int_to_bits, Bitx32
 from gates import high_level_mux
-from control_unit_backup import ControlUnit
+from control_unit import ControlUnit
 
 def shift_left_2(input_bits: Bitx32) -> Bitx32:
     shifted = input_bits[2:] + (Bit(False), Bit(False))
