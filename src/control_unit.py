@@ -1,13 +1,13 @@
 from memory import Bit, Bitx7, bin_str_to_bits, bin_to_dec
 
-OPCODE_R_TYPE   = 0b0110011
-OPCODE_I_TYPE   = 0b0010011
-OPCODE_LOAD     = 0b0000011
-OPCODE_STORE    = 0b0100011
-OPCODE_BRANCH   = 0b1100011
-OPCODE_JAL      = 0b1101111
-OPCODE_JALR     = 0b1100111
-OPCODE_FP       = 0b1010011
+OPCODE_R_TYPE = (0,1,1,0,0,1,1)
+OPCODE_I_TYPE = (0,0,1,0,0,1,1)
+OPCODE_LOAD = (0,0,0,0,0,1,1)
+OPCODE_STORE = (0,1,0,0,0,1,1)
+OPCODE_BRANCH = (1,1,0,0,0,1,1)
+OPCODE_JAL = (1,1,0,1,1,1,1)
+OPCODE_JALR = (1,1,0,0,1,1,1)
+OPCODE_FP = (1,0,1,0,0,1,1)
 
 class ControlUnit:
     def __init__(self):
@@ -25,7 +25,6 @@ class ControlUnit:
         self.ALUOp    = (0, 0)  # 2-bit tuple
 
     def decode(self, opcode: Bitx7):
-        opcode: int = bin_to_dec(opcode)
 
         self.reset()
 
