@@ -1,196 +1,58 @@
-"""
-This file contains the Datapath class
-This will contain a memory_unit, an adder, and a program counter
-The adder will increment the value held by the program counter, which contains the memory address of the instruction, which will be retrieved by the memory unit
-"""
-from memory import Bit, Bitx32, Bitx20, Bitx12, Bitx5, Byte, Memory
-from memory_unit import memory_unit
-from alu import ALU32
-from fpu import FPU32
 from register_file import RegisterFile
-from instruction_memory import PC, InstructionMemory
+from instruction_memory import InstructionMemory, PC
+from alu import ALU
+from alu_control import ALUControl
+from fpu import FPU32
+from memory import Bit, Bitx16, Bitx6, bin_str_to_bits, int_to_bits, Bitx32
+from gates import high_level_mux
+from control_unit import ControlUnit
 
-class Datapath:
-  mu:memory_unit
-  adder:ALU32
-  fpu:FPU32
-  program_counter:PC
-  reg_file:RegisterFile
-  ALL_ZERO_X32 = Bitx32(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
-  
-  def __init__(self, memory_unit, fpu32):
-    self.mu = memory_unit
-    self.adder = fpu32
+def shift_left_2(input_bits: Bitx32) -> Bitx32:
+    shifted = input_bits[2:] + (0, 0)
+    return shifted
 
-  def get_instruction(self, address:Bitx32)->str:
-    result = self.mu.get_instruction(address)
-    return result
+def sign_extend_16_to_32(input16: Bitx16) -> Bitx32:
+    sign_bit = input16[0]
+    extended = tuple(Bit(sign_bit) for _ in range(16)) + input16
+    return extended
 
-  def execute(self, instruction:tuple):
-    match instruction():
-      #immediate/utility
-      case ["lui", input1, input2]:
-        """
-        input1 is a register
-        input2 is a 20-bit immediate value
-        This loads input2 into the first 20 bits of input1's storage and fills the lower 12 bits with 0s. 
-        """ 
-        if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx20)):
-          raise TypeError("Invalid input type")
-      case ["auipc", input1, input2]:
-        """
-        input1 is a register
-        input2 is a 20-bit immediate value
-        This adds the 20-bit value to the program_counter and stores that in input1
-        """
-        if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx20)):
-          raise TypeError("Invalid input type") 
-        
-      #control
-      case ["jal", input1, input2]:
-        """
-        input1 is a register
-        input2 is a label
-        The instruction at program_counter + 4 is stored in input1, and we jump to the label in input2
-        """
-        if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx20)):
-          raise TypeError("Invalid input type")
-      case ["jalr", input1, input2]:
-        """
-        input1 is a register
-        input2 is an offset of a register, formatted offset(register)
-        This stores the address of the instruction at program_counter + 4 in input1, and we jump to offset+register from input2
-        """
-        if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx5) and isinstance(input3, Bitx12)):
-          raise TypeError("Invalid input type") 
-      case ["beq", input1, input2, input3]:
-        """
-        input1 is a register
-        input2 is a register
-        input3 is a label
-        If input1 == input2, jump to label
-        """
-        if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx5) and isinstance(input3, Bitx12)):
-          raise TypeError("Invalid input type") 
-      case ["bne", input1, input2, input3]:
-        """
-        input1 is a register
-        input2 is a register
-        input3 is a label
-        If input1 != input2, jump to label
-        """
-        if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx5) and isinstance(input3, Bitx12)):
-          raise TypeError("Invalid input type")
-        
-      #memory
-      case ["lw", input1, input2, input3]:
-        """
-        input1 is a register
-        input2 and 3 is an offset of a register, register in 2, offset in 3
-        This loads from offset+register into input1
-        """
-        if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx5) and isinstance(input3, Bitx12)):
-          raise TypeError("Invalid input type") 
-      case ["sw", input1, input2, input3]:
-        """
-        input1 is a register
-        input2 and 3 is an offset of a register, register in 2, offset in 3
-        This stores a word from input1 into offset+register
-        """
-        if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx5) and isinstance(input3, Bitx12)):
-          raise TypeError("Invalid input type") 
-        
-      #arithmetic  
-      case ["add", input1, input2, input3]:
-        """
-        input1 is a register
-        input2 is a register
-        input3 is a register
-        This performs input1 = input2 + input3
-        """ 
-        if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx5) and isinstance(input3, Bitx5)):
-          raise TypeError("Invalid input type")
-        
-        self.alu.exec(input2, input3, "ADD") #replace input 2 and 3 with the values, write to input1
-      case ["sub", input1, input2, input3]:
-        """
-        input1 is a register
-        input2 is a register
-        input3 is a register
-        This performs input1 = input2 - input3
-        """ 
-        if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx5) and isinstance(input3, Bitx5)):
-          raise TypeError("Invalid input type")
-        
-        self.alu.exec(input2, input3, "SUB") #replace input 2 and 3 with the values, write to 1
-      case ["addi", input1, input2, input3]:
-        """
-        input1 is a register
-        input2 is a register
-        input3 is a 12-bit immediate value
-        This performs input1 = input2 + input3
-        """ 
-        if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx5) and isinstance(input3, Bitx12)):
-          raise TypeError("Invalid input type")
-        
-        self.alu.exec(input2, input3, "ADD") #replace input 2 and 3 with the values, write to 1
 
-      #logical
-      case ["and", input1, input2, input3]:
-        """
-        input1 is a register
-        input2 is a register
-        input3 is a register
-        This performs input1 = input2 AND input3
-        """ 
-        if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx5) and isinstance(input3, Bitx5)):
-          raise TypeError("Invalid input type")
-      case ["or", input1, input2, input3]:
-        """
-        input1 is a register
-        input2 is a register
-        input3 is a register
-        This performs input1 = input2 OR input3
-        """ 
-        if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx5) and isinstance(input3, Bitx5)):
-          raise TypeError("Invalid input type")
-      case ["xor", input1, input2, input3]:
-        """
-        input1 is a register
-        input2 is a register
-        input3 is a register
-        This performs input1 = input2 XOR input3
-        """ 
-        if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx5) and isinstance(input3, Bitx5)):
-          raise TypeError("Invalid input type")
-      #shifts
-      case ["sll", input1, input2, input3]:
-        """
-        input1 is a register
-        input2 is a register
-        input3 is a register
-        This shifts the contents of input2 to the left by the amount specified in input3, and stores the result in input1
-        """ 
-        if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx5) and isinstance(input3, Bitx5)):
-          raise TypeError("Invalid input type")
-      case ["srl", input1, input2, input3]:
-        """
-        input1 is a register
-        input2 is a register
-        input3 is a register
-        This shifts the contents of input2 to the right by the amount specified in input3, and stores the result in input1
-        """ 
-        if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx5) and isinstance(input3, Bitx5)):
-          raise TypeError("Invalid input type")
-      case ["sra", input1, input2, input3]:
-        """
-        input1 is a register
-        input2 is a register
-        input3 is a register
-        This shifts the contents of input2 to the right by the amount specified in input3, and stores the result in input1
-        """ 
-        if not (isinstance(input1, Bitx5) and isinstance(input2, Bitx5) and isinstance(input3, Bitx5)):
-          raise TypeError("Invalid input type")
-      #default case
-      case _:
-        raise ValueError("Instruction not found")
+class DataPath:
+    def __init__(self):
+        self.register_file = RegisterFile()
+        self.pc = PC(int_to_bits(0, 32))
+        self.instruction_memory = InstructionMemory()
+        self.alu = ALU()
+        self.fpu = FPU32()
+        self.control = ControlUnit()
+        self.alu_control = ALUControl()
+
+    def update(self, prog:list[str]):
+        self.instruction_memory.load(prog)
+
+        write_data = bin_str_to_bits("0"*32)
+
+        ## Emulates a clock:
+        while instruction := self.instruction_memory.get_instruction(self.pc.value):
+            self.control.decode(instruction[26:32])
+            mux_res = high_level_mux(instruction[16:21], instruction[11:16], self.control.RegDst)
+            read_data_1, read_data_2 = self.register_file.update(instruction[21:26], instruction[16:21], mux_res, write_data, self.control.RegWrite)
+            
+
+
+            sign_extended = sign_extend_16_to_32(instruction[0:16])
+
+            alu_operation = self.alu_control.update(self.control.ALUOp, instruction[12:15], instruction[30])
+
+            alu_mux = high_level_mux(read_data_2, sign_extended, self.control.ALUSrc)
+
+            Zero_signal, alu_result = self.alu.update(alu_operation, read_data_1, alu_mux)
+            
+            self.alu.op_add()
+            
+
+
+
+
+
+            

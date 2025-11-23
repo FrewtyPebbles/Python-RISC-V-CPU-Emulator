@@ -23,6 +23,7 @@ class ControlUnit:
         self.Branch = 0
         self.Jump = 0
         self.ALUOp = (0, 0)  # 2-bit tuple
+        self.FPUOp = 0
 
     def decode(self, opcode: Bitx7):
 
@@ -74,6 +75,7 @@ class ControlUnit:
         # FPU op
         elif opcode == OPCODE_FP:
             self.RegWrite = 1
+            self.FPUOp = 1
             self.ALUOp = (1, 1)    # 11 = FP ALU
 
         else:
