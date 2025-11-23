@@ -14,15 +14,15 @@ class ControlUnit:
         self.reset()
 
     def reset(self):
-        self.RegDst   = Bit(False)
-        self.ALUSrc   = Bit(False)
-        self.MemToReg = Bit(False)
-        self.RegWrite = Bit(False)
-        self.MemRead  = Bit(False)
-        self.MemWrite = Bit(False)
-        self.Branch   = Bit(False)
-        self.Jump     = Bit(False)
-        self.ALUOp    = (Bit(False), Bit(False))  # 2-bit tuple
+        self.RegDst   = 0
+        self.ALUSrc   = 0
+        self.MemToReg = 0
+        self.RegWrite = 0
+        self.MemRead  = 0
+        self.MemWrite = 0
+        self.Branch   = 0
+        self.Jump     = 0
+        self.ALUOp    = (0, 0)  # 2-bit tuple
 
     def decode(self, opcode: Bitx7):
         opcode: int = bin_to_dec(opcode)
@@ -31,51 +31,51 @@ class ControlUnit:
 
         # R-Type
         if opcode == OPCODE_R_TYPE:
-            self.RegDst = Bit(True)
-            self.RegWrite = Bit(True)
-            self.ALUOp = (Bit(True), Bit(False))   # 10
+            self.RegDst = 1
+            self.RegWrite = 1
+            self.ALUOp = (1, 0)   # 10
 
         # I-type
         elif opcode == OPCODE_I_TYPE:
-            self.ALUSrc = Bit(True)
-            self.RegWrite = Bit(True)
-            self.ALUOp = (Bit(True), Bit(False))   # 10
+            self.ALUSrc = 1
+            self.RegWrite = 1
+            self.ALUOp = (1, 0)   # 10
 
         # Load
         elif opcode == OPCODE_LOAD:
-            self.ALUSrc = Bit(True)
-            self.MemToReg = Bit(True)
-            self.RegWrite = Bit(True)
-            self.MemRead = Bit(True)
-            self.ALUOp = (Bit(False), Bit(False))  # 00
+            self.ALUSrc = 1
+            self.MemToReg = 1
+            self.RegWrite = 1
+            self.MemRead = 1
+            self.ALUOp = (0, 0)  # 00
 
         # Store
         elif opcode == OPCODE_STORE:
-            self.ALUSrc = Bit(True)
-            self.MemWrite = Bit(True)
-            self.ALUOp = (Bit(False), Bit(False))  # 00
+            self.ALUSrc = 1
+            self.MemWrite = 1
+            self.ALUOp = (0, 0)  # 00
 
         # Branch
         elif opcode == OPCODE_BRANCH:
-            self.Branch = Bit(True)
-            self.ALUOp = (Bit(False), Bit(True))   # 01
+            self.Branch = 1
+            self.ALUOp = (0, 1)   # 01
 
         # JAL
         elif opcode == OPCODE_JAL:
-            self.Jump = Bit(True)
-            self.RegWrite = Bit(True)
-            self.ALUOp = (Bit(False), Bit(False))  # 00 (PC + offset add)
+            self.Jump = 1
+            self.RegWrite = 1
+            self.ALUOp = (0, 0)  # 00 (PC + offset add)
 
         # JALR
         elif opcode == OPCODE_JALR:
-            self.Jump = Bit(True)
-            self.RegWrite = Bit(True)
-            self.ALUOp = (Bit(False), Bit(False))  # 00
+            self.Jump = 1
+            self.RegWrite = 1
+            self.ALUOp = (0, 0)  # 00
 
         # FPU op
         elif opcode == OPCODE_FP:
-            self.RegWrite = Bit(True)
-            self.ALUOp = (Bit(True), Bit(True))    # 11 = FP ALU
+            self.RegWrite = 1
+            self.ALUOp = (1, 1)    # 11 = FP ALU
 
         else:
             raise ValueError(f"Unknown opcode: {opcode:07b}")

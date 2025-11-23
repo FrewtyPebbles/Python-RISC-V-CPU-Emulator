@@ -7,12 +7,12 @@ from gates import high_level_mux
 from control_unit import ControlUnit
 
 def shift_left_2(input_bits: Bitx32) -> Bitx32:
-    shifted = input_bits[2:] + (Bit(False), Bit(False))
+    shifted = input_bits[2:] + (0, 0)
     return shifted
 
 def sign_extend_16_to_32(input16: Bitx16) -> Bitx32:
     sign_bit = input16[0]
-    extended = tuple(Bit(sign_bit.value) for _ in range(16)) + input16
+    extended = tuple(Bit(sign_bit) for _ in range(16)) + input16
     return extended
 
 

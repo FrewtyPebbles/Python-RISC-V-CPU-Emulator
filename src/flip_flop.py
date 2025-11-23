@@ -4,14 +4,14 @@ from memory import Bit
 class SRLatch:
 
     def __init__(self):
-        self.Q:Bit = Bit(False)
-        self.Q_bar:Bit = Bit(True)
+        self.Q:Bit = 0
+        self.Q_bar:Bit = 1
 
     def update(self, S:Bit, R:Bit, power:Bit = None) -> tuple[Bit, Bit]:
         """
         Returns Q, Q_bar
         """
-        power = power if power != None else Bit(True)
+        power = power if power != None else 1
         Q_next = g.nor_gate(R, self.Q_bar, power)
         Q_bar_next = g.nor_gate(S, Q_next, power)
         self.Q, self.Q_bar = Q_next, Q_bar_next
@@ -22,7 +22,7 @@ class DLatch(SRLatch):
         """
         Returns Q, Q_bar
         """
-        power = power if power != None else Bit(True)
+        power = power if power != None else 1
         D_not = g.not_gate(D, power)
         S = g.and_gate(C, D_not, power)
         R = g.and_gate(C, D, power)
@@ -38,7 +38,7 @@ class DFlipFlop:
         """
         Returns Q, Q_bar
         """
-        power = power if power != None else Bit(True)
+        power = power if power != None else 1
         
         d_latch_0_out = self.d_latch_0.update(D, C, power)
 

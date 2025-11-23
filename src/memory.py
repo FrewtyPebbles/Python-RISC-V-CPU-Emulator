@@ -3,36 +3,7 @@ from array import array
 from typing import Iterable, Literal
 from typing import Iterable
 
-class Bit:
-    """
-    This a class so that bits are mutable.
-    """
-
-    value:bool
-    
-    def __init__(self, value:bool = False):
-        self.value = bool(value)
-
-    def __bool__(self) -> bool:
-        return self.value
-    
-    def __int__(self) -> int:
-        return int(self.value)
-    
-    def __float__(self) -> int:
-        return float(self.value)
-    
-    def __or__(self, other:Bit):
-        """
-        Analagous to connecting two wires together.
-        """
-        return Bit(self or other)
-    
-    def to_hex(self) -> str:
-        return bin_to_hex(self.read_bits())
-    
-    def __repr__(self):
-        return "1" if self.value else "0"
+Bit = Literal[0, 1]
 
 Bitx32 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
 Bitx2 = tuple[Bit,Bit]
@@ -57,7 +28,7 @@ class Byte:
     size:Literal[8] = 8
 
     def __init__(self, memory:list[Bit] = None):
-        self.memory = memory if memory else [Bit(), Bit(), Bit(), Bit(), Bit(), Bit(), Bit(), Bit()]
+        self.memory = memory if memory else [0,0,0,0,0,0,0,0]
 
     def __getitem__(self, index:int) -> Bit:
         if index < 0 or index >= self.size:
@@ -65,7 +36,7 @@ class Byte:
         return self.memory[index]
 
     def __setitem__(self, index:int, value:bool):
-        self.memory[index].value = value
+        self.memory[index] = value
 
     def __iter__(self):
         return self
@@ -76,7 +47,7 @@ class Byte:
     def write_bits(self, bits:Iterable[Bit]):
         assert len(bits) == len(self)
         for b_n, bit in enumerate(bits):
-            self.memory[b_n].value = bit.value
+            self.memory[b_n] = bit
 
     def read_bits(self) -> Bitx8:
         return tuple(bit for bit in self)
@@ -134,10 +105,10 @@ class Memory:
     def write_bits(self, bits:Iterable[Bit]):
         assert len(bits) == len(self)
         for b_n, bit in enumerate(bits):
-            self[b_n].value = bit.value
+            self[b_n] = bit
 
     def read_bits(self) -> tuple[Bit,...]:
-        return tuple(Bit(bit.value) for bit in self)
+        return tuple(bit for bit in self)
     
     def to_hex(self) -> str:
         return bin_to_hex(self.read_bits())
@@ -154,7 +125,7 @@ def dec_to_bin(value: int, size: int) -> tuple[Bit, ...]:
         raise ValueError("Only non-negative integers supported.")
     bits = []
     for _ in range(size):
-        bits.append(Bit(value & 1))
+        bits.append(int(bool(value & 1)))
         value >>= 1
     return tuple(bits)  # LSB first
 
@@ -169,7 +140,7 @@ def dec_to_bin_signed(value: int, size: int) -> tuple[Bit, ...]:
 
     bits = []
     for _ in range(size):
-        bits.append(Bit(value & 1))
+        bits.append(int(bool(value & 1)))
         value >>= 1
     return tuple(bits)
 
@@ -206,7 +177,7 @@ def hex_to_bin(hex_str:str, bit_length:int) -> tuple[Bit,...]:
     value &= (1 << bit_length) - 1
     
     # convert integer to tuple of booleans (LSB-first, little-endian)
-    bits = tuple(Bit((value >> i) & 1) for i in range(bit_length))
+    bits = tuple(int(bool((value >> i) & 1)) for i in range(bit_length))
     
     return bits
 
@@ -219,7 +190,7 @@ def octal_to_bin(octal_str: str, bit_length:int) -> tuple[Bit, ...]:
     if value >= (1 << bit_length):
         raise ValueError(f"Octal value {octal_str} = {value} exceeds {bit_length} bits")
 
-    return tuple(Bit((value >> i) & 1) for i in range(bit_length))
+    return tuple(int(bool((value >> i) & 1)) for i in range(bit_length))
 
 def bin_endian_swap(bits:tuple[Bit,...]) -> tuple[Bit,...]:
     if len(bits) % 8 != 0:
@@ -253,7 +224,7 @@ def is_int(s:str) -> bool:
         return False
     
 def bin_str_to_bits(binary:str) -> tuple[Bit,...]:
-    return tuple(Bit(True if bit == "1" else False) for bit in binary[::-1])
+    return tuple(int(bool(True if bit == "1" else False)) for bit in binary[::-1])
 
 def bits_to_uint32(bits: tuple[Bit, ...]) -> int:
     v = 0
@@ -263,7 +234,7 @@ def bits_to_uint32(bits: tuple[Bit, ...]) -> int:
     return v
 
 def int_to_bits(value:int, size:int) -> tuple[Bit,...]:
-    return tuple(Bit((value >> i) & 1) for i in range(size))
+    return tuple(int(bool((value >> i) & 1)) for i in range(size))
 
 def bits_to_hex_little_endian(bits: tuple[Bit, ...]) -> str:
     if len(bits) % 8 != 0:

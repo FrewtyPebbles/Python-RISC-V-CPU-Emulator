@@ -2,7 +2,7 @@ from memory import Bit, Bitx32
 import gates as g
 
 def decoder2x4(data_0:Bit, data_1:Bit, power:Bit = None) -> tuple[Bit,Bit,Bit,Bit]:
-    power = power if power is not None else Bit(True)
+    power = power if power is not None else 1
 
     d0_not = g.not_gate(data_0, power)
     d1_not = g.not_gate(data_1, power)
@@ -16,7 +16,7 @@ def decoder2x4(data_0:Bit, data_1:Bit, power:Bit = None) -> tuple[Bit,Bit,Bit,Bi
 
 
 def decoder3x8(data_0: Bit, data_1: Bit, data_2: Bit, power: Bit = None) -> tuple[Bit, ...]:
-    power = power if power is not None else Bit(True)
+    power = power if power is not None else 1
 
     d2_not = g.not_gate(data_2, power)  # invert data_2 only, not power
     dec2x4_0_out = decoder2x4(data_0, data_1, d2_not)
@@ -27,7 +27,7 @@ def decoder3x8(data_0: Bit, data_1: Bit, data_2: Bit, power: Bit = None) -> tupl
 
 
 def encoder8x3(data_0:Bit, data_1:Bit, data_2:Bit, data_3:Bit, data_4:Bit, data_5:Bit, data_6:Bit, data_7:Bit, power:Bit = None) -> tuple[Bit,Bit,Bit]:
-    power = power if power != None else Bit(True)
+    power = power if power != None else 1
 
     # data_0 goes to nothing or ground
 
@@ -46,7 +46,7 @@ def encoder8x3(data_0:Bit, data_1:Bit, data_2:Bit, data_3:Bit, data_4:Bit, data_
     return (or_0, or_1, or_2)
 
 def decoder4x16(data_0: Bit, data_1: Bit, data_2: Bit, data_3: Bit, power: Bit = None) -> tuple[Bit, ...]:
-    power = power if power is not None else Bit(True)
+    power = power if power is not None else 1
 
     d3_not = g.not_gate(data_3, power)
 
@@ -58,7 +58,7 @@ def decoder4x16(data_0: Bit, data_1: Bit, data_2: Bit, data_3: Bit, power: Bit =
 
 
 def decoder5x32(data_0: Bit, data_1: Bit, data_2: Bit, data_3: Bit, data_4: Bit, power: Bit = None) -> Bitx32:
-    power = power if power is not None else Bit(True)
+    power = power if power is not None else 1
 
     d4_not = g.not_gate(data_4, power)
 
@@ -77,6 +77,6 @@ def one_hot_to_decimal(one_hot:tuple[Bit,...]) -> int:
     return -1
 
 def dec_to_one_hot(dec:int, length:int) -> tuple[Bit,...]:
-    bits:tuple[Bit,...] = tuple(Bit(0) for _ in range(length))
-    bits[dec-1].value = True
+    bits:tuple[Bit,...] = tuple(0 for _ in range(length))
+    bits[dec-1] = 1
     return bits

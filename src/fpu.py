@@ -8,8 +8,8 @@ Bits = Tuple[Bit, ...]
 
 
 class FPU32:
-    ZERO = Bit(False)
-    ONE  = Bit(True)
+    ZERO = 0
+    ONE  = 1
 
     EXP_BITS  = 8
     FRAC_BITS = 23
@@ -18,10 +18,10 @@ class FPU32:
     EXT_BITS  = MANT_BITS + GRS_BITS  # 27
 
     # 127 = 0b01111111 (MSB-first)
-    BIAS_BITS = (Bit(False), Bit(True), Bit(True), Bit(True), Bit(True), Bit(True), Bit(True), Bit(True))
+    BIAS_BITS = (0, 1, 1, 1, 1, 1, 1, 1)
 
-    EXP_ALL_ONES  = (Bit(True),)  * EXP_BITS
-    EXP_ALL_ZEROS = (Bit(False),) * EXP_BITS
+    EXP_ALL_ONES  = (1,)  * EXP_BITS
+    EXP_ALL_ZEROS = (0,) * EXP_BITS
 
     def unpack_f32(self, bits32: Bits) -> Tuple[Bit, Bits, Bits, str]:
         """Return (sign, exp8, frac23, klass: 'zero'|'subnormal'|'normal'|'inf'|'nan')."""

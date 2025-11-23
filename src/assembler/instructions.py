@@ -247,7 +247,7 @@ class InstructionToken(Token):
 
         # Default immediate is zero
         if self.immediate is None:
-            return tuple(Bit(False) for _ in range(length))
+            return tuple(0 for _ in range(length))
 
         imm_str = self.immediate.strip().lower()
 

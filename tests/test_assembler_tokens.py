@@ -10,5 +10,5 @@ def test_R_type():
         for rd_n in range(0,32):
             for rs1_n in range(0,32):
                 for rs2_n in range(0,32):
-                    token = InstructionToken(ins, f"x{rd_n}", f"x{rs1_n}", f"x{rs1_n}")
+                    token = InstructionToken(0, ins, f"x{rd_n}", f"x{rs1_n}", f"x{rs1_n}")
                     assert True
