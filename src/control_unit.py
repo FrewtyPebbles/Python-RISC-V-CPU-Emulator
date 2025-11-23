@@ -14,15 +14,15 @@ class ControlUnit:
         self.reset()
 
     def reset(self):
-        self.RegDst   = 0
-        self.ALUSrc   = 0
+        self.RegDst = 0
+        self.ALUSrc = 0
         self.MemToReg = 0
         self.RegWrite = 0
-        self.MemRead  = 0
+        self.MemRead = 0
         self.MemWrite = 0
-        self.Branch   = 0
-        self.Jump     = 0
-        self.ALUOp    = (0, 0)  # 2-bit tuple
+        self.Branch = 0
+        self.Jump = 0
+        self.ALUOp = (0, 0)  # 2-bit tuple
 
     def decode(self, opcode: Bitx7):
 
