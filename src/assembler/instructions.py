@@ -269,7 +269,7 @@ class InstructionToken(Token):
             value = int(imm_str, 10)
 
         # --- Convert to 32-bit tuple LSB-first ---
-        bits = tuple(Bit((value >> i) & 1) for i in range(length))
+        bits = tuple(int(bool((value >> i) & 1)) for i in range(length))
         return bits
             
 

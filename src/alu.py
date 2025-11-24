@@ -1,6 +1,7 @@
-from memory import Bit, Bitx12, Bitx32, Bitx4
+from memory import Bit, Bitx12, Bitx32, Bitx4, bin_to_dec, dec_to_bin
 
 import alu_control as ac
+import gates as g
 
 class ALU:
     def __init__(self):
@@ -32,45 +33,111 @@ class ALU:
                 return self.op_slt(read_data_1, read_data_2)
             case ac.CTRL_ALU_SLTU:
                 return self.op_sltu(read_data_1, read_data_2)
+            case _:
+                raise RuntimeError(f"ALU Operation not supported {operation}")
+            
+    @staticmethod
+    def compute_zero(res: Bitx32) -> Bit:
+        return int(all(b == 0 for b in res))
 
     @staticmethod
-    def op_add(read_data_1:Bitx32, read_data_2:Bitx32):
-        pass
+    def op_add(read_data_1:Bitx32, read_data_2:Bitx32) -> tuple[Bit, Bitx32]:
+        res_list = [0] * 32
+        carry:Bit = 0
+        for b_n in range(32):
+            bit, carry = g.one_bit_adder(read_data_1[b_n], read_data_2[b_n], carry)
+            res_list[b_n] = bit
 
-    @staticmethod
-    def op_sub(read_data_1:Bitx32, read_data_2:Bitx32):
-        pass
+        res = tuple(tuple(res_list))
+        zero = ALU.compute_zero(res)
+        return zero, res
+
+
+    @classmethod
+    def op_sub(cls, read_data_1:Bitx32, read_data_2:Bitx32):
+        # Get read_data_2 NOT
+        rd2_not_list = [0] * 32
+        for n, bit_rd2 in enumerate(read_data_2):
+            rd2_not_list[n] = int(not bit_rd2)
+        rd2_not = tuple(rd2_not_list)
+
+        # Now add 1 to it:
+        _, rd2_2s_comp = cls.op_add(rd2_not, dec_to_bin(1,32))
+        
+        return cls.op_add(read_data_1, rd2_2s_comp)
+
+        
     
     @staticmethod
     def op_and(read_data_1:Bitx32, read_data_2:Bitx32):
-        pass
+        res_list = [0] * 32
+        for b_n in range(32):
+            res_list[b_n] = g.and_gate(read_data_1[b_n], read_data_2[b_n])
+
+        res = tuple(tuple(res_list))
+        zero = ALU.compute_zero(res)
+        return zero, res
     
     @staticmethod
     def op_or(read_data_1:Bitx32, read_data_2:Bitx32):
-        pass
+        res_list = [0] * 32
+        for b_n in range(32):
+            res_list[b_n] = g.or_gate(read_data_1[b_n], read_data_2[b_n])
+
+        res = tuple(tuple(res_list))
+        zero = ALU.compute_zero(res)
+        return zero, res
 
     @staticmethod
     def op_xor(read_data_1:Bitx32, read_data_2:Bitx32):
-        pass
+        res_list = [0] * 32
+        for b_n in range(32):
+            res_list[b_n] = g.xor_gate(read_data_1[b_n], read_data_2[b_n])
+
+        res = tuple(tuple(res_list))
+        zero = ALU.compute_zero(res)
+        return zero, res
 
     @staticmethod
     def op_sll(read_data_1:Bitx32, read_data_2:Bitx32):
-        pass
+        shift = min(bin_to_dec(read_data_2[-5:]), 32)
+        res = read_data_1[shift:] + tuple(0 for _ in range(shift))
+        zero = ALU.compute_zero(res)
+        return zero, res
 
     @staticmethod
     def op_srl(read_data_1:Bitx32, read_data_2:Bitx32):
-        pass
+        shift = min(bin_to_dec(read_data_2[-5:]), 32)
+        res = tuple(0 for _ in range(shift)) + read_data_1[:32 - shift]
+        zero = ALU.compute_zero(res)
+        return zero, res
 
     @staticmethod
     def op_sra(read_data_1:Bitx32, read_data_2:Bitx32):
-        pass
+        shift = min(bin_to_dec(read_data_2[-5:]), 32)
+        sign_bit = read_data_1[0]
+        res = tuple(sign_bit for _ in range(shift)) + read_data_1[:32 - shift]
+        zero = ALU.compute_zero(res)
+        return zero, res
 
     @staticmethod
     def op_slt(read_data_1:Bitx32, read_data_2:Bitx32):
-        # EXTRA CREDIT
-        pass
+        def bits_to_signed(bits: Bitx32) -> int:
+            val = bin_to_dec(bits)
+            if bits[0] == 1:  # negative
+                val -= 2**32
+            return val
+
+        result = 1 if bits_to_signed(read_data_1) < bits_to_signed(read_data_2) else 0
+        res = (0,) * 31 + (result,)
+        zero = ALU.compute_zero(res)
+        return zero, res
 
     @staticmethod
     def op_sltu(read_data_1:Bitx32, read_data_2:Bitx32):
-        # EXTRA CREDIT
-        pass
+        val_a = bin_to_dec(read_data_1)
+        val_b = bin_to_dec(read_data_2)
+        result = 1 if val_a < val_b else 0
+        res = (0,) * 31 + (result,)
+        zero = ALU.compute_zero(res)
+        return zero, res

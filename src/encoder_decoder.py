@@ -74,7 +74,7 @@ def one_hot_to_decimal(one_hot:tuple[Bit,...]) -> int:
         if bit:
             return b_n
         
-    return -1
+    return 0
 
 def dec_to_one_hot(dec:int, length:int) -> tuple[Bit,...]:
     bits:tuple[Bit,...] = tuple(0 for _ in range(length))

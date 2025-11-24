@@ -5,6 +5,7 @@ from typing import Iterable
 
 Bit = Literal[0, 1]
 
+Bits = tuple[Bit,...]
 Bitx32 = tuple[Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit,Bit]
 Bitx2 = tuple[Bit,Bit]
 Bitx3 = tuple[Bit,Bit,Bit]
@@ -253,3 +254,12 @@ def bits_to_hex_little_endian(bits: tuple[Bit, ...]) -> str:
 
 def bits_to_10_tup(bits:tuple[Bit,...]) -> tuple[Literal[1]|Literal[0],...]:
     return tuple([1 if bit else 0 for bit in bits])
+
+def repr_bits(bits:Bits) -> str:
+    ret = ""
+    for b_n, bit in enumerate(bits):
+        ret += str(bit)
+        if b_n-3 % 4 == 0 and b_n != len(bits)-1:
+            ret += " "
+
+    return ret

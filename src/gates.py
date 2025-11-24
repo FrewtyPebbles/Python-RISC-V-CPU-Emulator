@@ -70,15 +70,17 @@ def mux_gate(data_a:Bit, data_b:Bit, control:Bit, power:Bit = None) -> Bit:
     
     return a_and_control_out_or_b_and_control_out_out
 
-def one_bit_adder(data_a:Bit, data_b:Bit, carry_in:Bit, power:Bit = None) -> Bit:
+def one_bit_adder(data_a:Bit, data_b:Bit, carry_in:Bit, power:Bit = None) -> tuple[Bit, Bit]:
     power = power if power != None else 1
-    c_and_a = and_gate(carry_in, data_a, power)
-    c_and_b = and_gate(carry_in, data_b, power)
+    a_xor_b = xor_gate(data_a, data_b, power)
+    sum_bit = xor_gate(a_xor_b, carry_in, power)
+
     a_and_b = and_gate(data_a, data_b, power)
+    a_and_cin = and_gate(data_a, carry_in, power)
+    b_and_cin = and_gate(data_b, carry_in, power)
+    carry_out = or_gate(or_gate(a_and_b, a_and_cin, power), b_and_cin, power)
 
-    c_and_a_or_c_and_b_or_a_and_b = or_gate(or_gate(data_a, data_b, power), carry_in, power)
-
-    return c_and_a_or_c_and_b_or_a_and_b
+    return sum_bit, carry_out
 
 def xor_gate(data_a: Bit, data_b: Bit, power: Bit = None) -> Bit:
     """

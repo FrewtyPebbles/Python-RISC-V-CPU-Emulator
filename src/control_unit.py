@@ -1,13 +1,15 @@
 from memory import Bit, Bitx7, bin_str_to_bits, bin_to_dec
 
-OPCODE_R_TYPE = (0,1,1,0,0,1,1)
-OPCODE_I_TYPE = (0,0,1,0,0,1,1)
-OPCODE_LOAD = (0,0,0,0,0,1,1)
-OPCODE_STORE = (0,1,0,0,0,1,1)
-OPCODE_BRANCH = (1,1,0,0,0,1,1)
-OPCODE_JAL = (1,1,0,1,1,1,1)
-OPCODE_JALR = (1,1,0,0,1,1,1)
-OPCODE_FP = (1,0,1,0,0,1,1)
+# LSB first
+OPCODE_R_TYPE = (1,1,0,0,1,1,0)
+OPCODE_I_TYPE = (1,1,0,0,1,0,0)
+OPCODE_LOAD = (1,1,0,0,0,0,0)
+OPCODE_STORE = (1,1,0,1,0,0,0)
+OPCODE_BRANCH = (1,1,0,1,0,0,1)
+OPCODE_JAL = (1,1,1,1,0,1,1)
+OPCODE_JALR = (1,1,1,0,0,1,0)
+OPCODE_FP = (1,1,0,0,1,0,1)
+
 
 class ControlUnit:
     def __init__(self):
@@ -79,4 +81,4 @@ class ControlUnit:
             self.ALUOp = (1, 1)    # 11 = FP ALU
 
         else:
-            raise ValueError(f"Unknown opcode: {opcode:07b}")
+            raise ValueError(f"Unknown opcode: {opcode}")

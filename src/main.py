@@ -1,5 +1,7 @@
 import argparse
-from assembler import assemble
+from assembler import assemble, Assembler
+
+from datapath import DataPath
 
 def main():
     parser = argparse.ArgumentParser(
@@ -16,7 +18,24 @@ def main():
         print(f"File written to {args.output}")
     else:
         ## Run the program
-        print("TODO")
+
+        source:str = args.source
+        dp = DataPath()
+        code_gen:list[str] = []
+        
+        
+        with open(source, mode="r") as fp:
+            if source.endswith(".asm"):
+                assembler = Assembler(fp.read())
+                code_gen = assembler.parse(0x0)
+            else:
+                code_gen = fp.readlines()
+        
+        dp.load_program(code_gen)
+        dp.run()
+
+
+
 
 if __name__ == "__main__":
     main()

@@ -25,7 +25,7 @@ class InstructionMemory:
             
 
     def get_instruction(self, address:Bitx32) -> Bitx32:
-        dec_addr = bin_to_dec(address)
+        dec_addr = bin_to_dec(address) // 4
         if dec_addr < len(self.memory):
             return self.memory[dec_addr]
         return None
