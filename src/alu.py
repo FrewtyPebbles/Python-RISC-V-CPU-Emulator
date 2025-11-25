@@ -6,7 +6,6 @@ import gates as g
 class ALU:
     def __init__(self):
         pass
-        #might add attributes later
     
     def update(self, operation:Bitx4, read_data_1:Bitx32, read_data_2:Bitx32) -> tuple[Bit, Bitx32]:
         """
@@ -48,7 +47,7 @@ class ALU:
             bit, carry = g.one_bit_adder(read_data_1[b_n], read_data_2[b_n], carry)
             res_list[b_n] = bit
 
-        res = tuple(tuple(res_list))
+        res = tuple(res_list)
         zero = ALU.compute_zero(res)
         return zero, res
 
@@ -74,7 +73,7 @@ class ALU:
         for b_n in range(32):
             res_list[b_n] = g.and_gate(read_data_1[b_n], read_data_2[b_n])
 
-        res = tuple(tuple(res_list))
+        res = tuple(res_list)
         zero = ALU.compute_zero(res)
         return zero, res
     
@@ -84,7 +83,7 @@ class ALU:
         for b_n in range(32):
             res_list[b_n] = g.or_gate(read_data_1[b_n], read_data_2[b_n])
 
-        res = tuple(tuple(res_list))
+        res = tuple(res_list)
         zero = ALU.compute_zero(res)
         return zero, res
 
@@ -94,28 +93,28 @@ class ALU:
         for b_n in range(32):
             res_list[b_n] = g.xor_gate(read_data_1[b_n], read_data_2[b_n])
 
-        res = tuple(tuple(res_list))
+        res = tuple(res_list)
         zero = ALU.compute_zero(res)
         return zero, res
 
     @staticmethod
     def op_sll(read_data_1:Bitx32, read_data_2:Bitx32):
-        shift = min(bin_to_dec(read_data_2[-5:]), 32)
+        shift = min(bin_to_dec(read_data_2[0:5]), 32)
         res = read_data_1[shift:] + tuple(0 for _ in range(shift))
         zero = ALU.compute_zero(res)
         return zero, res
 
     @staticmethod
     def op_srl(read_data_1:Bitx32, read_data_2:Bitx32):
-        shift = min(bin_to_dec(read_data_2[-5:]), 32)
+        shift = min(bin_to_dec(read_data_2[0:5]), 32)
         res = tuple(0 for _ in range(shift)) + read_data_1[:32 - shift]
         zero = ALU.compute_zero(res)
         return zero, res
 
     @staticmethod
     def op_sra(read_data_1:Bitx32, read_data_2:Bitx32):
-        shift = min(bin_to_dec(read_data_2[-5:]), 32)
-        sign_bit = read_data_1[0]
+        shift = min(bin_to_dec(read_data_2[0:5]), 32)
+        sign_bit = read_data_1[31]
         res = tuple(sign_bit for _ in range(shift)) + read_data_1[:32 - shift]
         zero = ALU.compute_zero(res)
         return zero, res
@@ -124,12 +123,12 @@ class ALU:
     def op_slt(read_data_1:Bitx32, read_data_2:Bitx32):
         def bits_to_signed(bits: Bitx32) -> int:
             val = bin_to_dec(bits)
-            if bits[0] == 1:  # negative
+            if bits[31] == 1:
                 val -= 2**32
             return val
 
         result = 1 if bits_to_signed(read_data_1) < bits_to_signed(read_data_2) else 0
-        res = (0,) * 31 + (result,)
+        res = (result,) + (0,) * 31
         zero = ALU.compute_zero(res)
         return zero, res
 
@@ -138,6 +137,6 @@ class ALU:
         val_a = bin_to_dec(read_data_1)
         val_b = bin_to_dec(read_data_2)
         result = 1 if val_a < val_b else 0
-        res = (0,) * 31 + (result,)
+        res = (result,) + (0,) * 31
         zero = ALU.compute_zero(res)
         return zero, res

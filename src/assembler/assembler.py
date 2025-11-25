@@ -29,7 +29,7 @@ class Assembler:
                 # Do not increment PC for label itself
             else:
                 # Assume every instruction is 4 bytes
-                pc += 32
+                pc += 4
 
         return label_table
     
@@ -54,11 +54,12 @@ class Assembler:
                 ]]):
                     continue
                 else:
-                    pc += 32
+                    pc += 4
                     continue
 
             # Parse instruction
             tokens.append(self.parse_instruction(line, pc))
+            pc += 4
 
         gen_code:list[str] = []
 

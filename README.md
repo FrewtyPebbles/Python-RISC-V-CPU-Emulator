@@ -4,7 +4,7 @@
 
 ## AI Usage
 
- - AI was used to generate a portion of the unit tests and for assisting with minor bug fixes.
+ - AI was used to generate a portion of the unit tests, assisting with minor bug fixes, and for generating assembly files.
 
 ## Installation
 

@@ -36,11 +36,11 @@ class Byte:
             raise IndexError("index out of memory bounds.")
         return self.memory[index]
 
-    def __setitem__(self, index:int, value:bool):
+    def __setitem__(self, index:int, value:Bit):
         self.memory[index] = value
 
     def __iter__(self):
-        return self
+        return iter(self.memory)
     
     def __len__(self) -> int:
         return self.size
@@ -86,7 +86,7 @@ class Memory:
         return self.memory[index // 8][index % 8]
 
     def __setitem__(self, index:int, value:bool):
-        self.memory[index // 8][index % 8] = bool(value)
+        self.memory[index // 8][index % 8] = int(bool(value))
 
     def __iter__(self):
         return self
@@ -146,10 +146,7 @@ def dec_to_bin_signed(value: int, size: int) -> tuple[Bit, ...]:
     return tuple(bits)
 
 def bin_to_dec(bits: Iterable[Bit]) -> int:
-    value = 0
-    for i, b in enumerate(bits):
-        value += int(b) << i
-    return value
+    return sum(bit << i for i, bit in enumerate(bits))
 
 def dec_to_hex(num:int):
     return hex(num)[2:].upper()
@@ -263,3 +260,21 @@ def repr_bits(bits:Bits) -> str:
             ret += " "
 
     return ret
+
+
+def shift_left_2(bits: Bits) -> Bitx32:
+    # LSB-first: multiply by 4
+    return (0, 0) + bits[:30]
+
+def shift_left_1(bits: Bits) -> Bitx32:
+    return (0,) + bits[:31]
+
+
+def sign_extend(bits: Bits, target_len: int = 32) -> Bitx32:
+    # LSB-first: bits[0] = LSB, extend MSBs
+    sign_bit = bits[-1]
+    extension = tuple(int(bool(sign_bit)) for _ in range(target_len - len(bits)))
+    return bits + extension
+
+def slice_bits(instr: Bits, lo: int, hi: int) -> tuple:
+    return tuple(instr[i] for i in range(lo, hi + 1))

@@ -10,6 +10,12 @@ def main():
     )
     parser.add_argument("source", help="Path to input assembly or hex file.")
     parser.add_argument("--assemble_only", action="store_true", help="Flag to assemble a file without running it.")
+    parser.add_argument("--show_steps", action="store_true", help="Flag to show every instruction step the emulator takes.")
+    parser.add_argument("--show_memory", action="store_true", help="Flag to show all the in use memory in the Memory Unit.")
+    parser.add_argument("--show_reads", action="store_true", help="Flag to show whenever the Memory Unit is read from.")
+    parser.add_argument("--show_writes", action="store_true", help="Flag to show whenever the Memory Unit is written to.")
+    parser.add_argument("--show_immediate_values", action="store_true", help="Flag to show all possible immediate values by type after every step.")
+    parser.add_argument("--show_registers", action="store_true", help="Flag to show all registers after every step.")
     parser.add_argument("-o", "--output", help="Path to output hex file.  This only works when the '--assemble_only' argument flag is included")
     args = parser.parse_args()
 
@@ -20,7 +26,20 @@ def main():
         ## Run the program
 
         source:str = args.source
-        dp = DataPath()
+        show_steps:bool = args.show_steps
+        show_memory:bool = args.show_memory
+        show_reads:bool = args.show_reads
+        show_writes:bool = args.show_writes
+        show_immediate_values:bool = args.show_immediate_values
+        show_registers:bool = args.show_registers
+        dp = DataPath(
+            show_immediate_values,
+            show_registers,
+            show_steps,
+            show_memory,
+            show_reads,
+            show_writes
+        )
         code_gen:list[str] = []
         
         
