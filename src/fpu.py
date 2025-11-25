@@ -48,8 +48,14 @@ class FPU32:
             res_mantissa = self.alu.op_sub(mantissa_1, mantissa_2)[1]
         
         res_mantissa, res_exp = self.normalize(res_mantissa, res_exp) #normalize result to 1.F format
-        #next, we need to round and check for exceptions, updating freg if we find exceptions
+        
+        val_mantissa_1 = bin_to_dec(mantissa_1)
+        val_mantissa_2 = bin_to_dec(mantissa_2)
+        
+        res_sign = sign_2 if val_mantissa_2>val_mantissa_1 and sign_1 != sign_2 else sign_1 #determining sign
 
+        res:Bitx32 = res_sign + res_exp + res_mantissa #assembling result to be returned
+        return res
 
 
     def f_mul(self, operand_1:Bitx32, operand_2:Bitx32) -> Bitx32: 
@@ -77,11 +83,13 @@ class FPU32:
             s_bit = s_bit or s_bits[_]
 
         if not g_bit:
+            return to_be_rounded[0:22] 
 
         elif g_bit and (r_bit or s_bit):
-
+            to_be_rounded = self.alu.op_add([0,0,0,0,0,0,0,0] + to_be_rounded[:24], self.ONE_32)[1]
+            return to_be_rounded[0:22]
         else:
             if to_be_rounded[23]:
-                return self.alu.op_add([0,0,0,0,0,0,0,0] + to_be_rounded[:24], self.ONE_32)[1]
+                return self.alu.op_add([0,0,0,0,0,0,0,0] + to_be_rounded[:24], self.ONE_32)[1][0:22]
             else:
-                return to_be_rounded[0:23]
+                return to_be_rounded[0:22]
