@@ -1,6 +1,8 @@
 # RISC V 32-Bit CPU Emulator
 
- - By William Lim, Mathew Barlund
+ - By William Lim and Mathew Barlund
+
+This CPU emulator emulates at the bit level with many low level gates emulated.
 
 ## AI Usage
 
@@ -24,10 +26,11 @@ python -m build
 Then install the `.whl` file in the `dist/` directory that was just created.
 
 ```
-python -m pip install dist/something.whl
+python -m pip install ./dist/something.whl
 ```
 
 Now the cpu emulator should be installed globally!
+You can also do this in a venv if you want.
 
 ## Running the emulator
 

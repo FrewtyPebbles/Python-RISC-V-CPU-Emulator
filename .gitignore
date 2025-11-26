@@ -4,3 +4,4 @@ __pycache__/
 uv.lock
 .python-version
 *.egg-info
+dist/

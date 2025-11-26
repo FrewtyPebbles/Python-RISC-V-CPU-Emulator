@@ -114,6 +114,7 @@ class LabelToken(Token):
         self.address = dec_to_bin(address, 32) if isinstance(address, int) else address
         self.address_dec = address if isinstance(address, int) else bin_to_dec(address)
 
+
 class InstructionToken(Token):
     token_type = TokenType.INSTRUCTION
     instruction_type:InstructionType
@@ -292,7 +293,10 @@ class InstructionToken(Token):
         
         # U-type
         elif self.instruction_type == InsTyp.U:
+            # For U-type, mask to 20 bits and don't sign extend
             value = value & 0xFFFFF
+            # Shift left by 12 to position it correctly in bits [12:31]
+            value = value << 12
         
         # J-type
         elif self.instruction_type == InsTyp.J:
@@ -306,90 +310,6 @@ class InstructionToken(Token):
         
         bits = tuple(int(bool((value >> i) & 1)) for i in range(32))
         return bits
-            
-    def get_imm_value(self, label_lookup: dict[str, LabelToken], octal_enabled: bool = True) -> int:
-        """Return the immediate as a 32-bit unsigned integer (0..0xFFFFFFFF)."""
-        if self.instruction_type == InsTyp.R:
-            return 0
-
-        if self.immediate is None:
-            return 0
-
-        imm_str = self.immediate.strip().lower()
-
-        # label handling
-        if imm_str in label_lookup:
-            target_addr = label_lookup[imm_str].address_dec
-            if self.instruction_type in (InsTyp.B, InsTyp.J):
-                offset = target_addr - self.address_dec
-                if offset % 2 != 0:
-                    raise SyntaxError(f"Branch/JAL target '{imm_str}' is not 2-byte aligned (PC={hex(self.address_dec)})")
-                if self.instruction_type == InsTyp.B and not (-8192 <= offset <= 8190):
-                    raise SyntaxError(f"Branch offset {offset} too large for B-type")
-                if self.instruction_type == InsTyp.J and not (-2**20 <= offset <= 2**20 - 2):
-                    raise SyntaxError(f"JAL offset {offset} too large")
-                value = offset
-            else:
-                value = target_addr
-        else:
-            # numeric immediate parsing
-            try:
-                if imm_str.startswith("0x"):
-                    value = int(imm_str, 16)
-                elif imm_str.startswith("0o"):
-                    value = int(imm_str[2:], 8)
-                elif imm_str.startswith("0") and octal_enabled and len(imm_str) > 1 and imm_str[1].isdigit():
-                    value = int(imm_str, 8)
-                else:
-                    value = int(imm_str, 10)
-            except ValueError:
-                raise SyntaxError(f"Invalid immediate or undefined label: {self.immediate}")
-        
-        # I-type
-        if self.instruction_type == InsTyp.I:
-            # Mask to 12 bits
-            value = value & 0xFFF
-            # Sign-extend from bit 11
-            if value & 0x800:  # if bit 11 is set
-                value = value | 0xFFFFF000  # sign extend to 32 bits
-        
-        # S-type
-        elif self.instruction_type == InsTyp.S:
-            # Mask to 12 bits
-            value = value & 0xFFF
-            # Sign-extend from bit 11
-            if value & 0x800:
-                value = value | 0xFFFFF000
-        
-        # B-type
-        elif self.instruction_type == InsTyp.B:
-            # Mask to 13 bits
-            if value < 0:
-                value = (value + (1 << 32)) & 0xFFFFFFFF
-            else:
-                value &= 0xFFFFFFFF
-        
-        # U-type
-        elif self.instruction_type == InsTyp.U:
-            # For U-type, we only keep the upper 20 bits of the provided value
-            # The immediate represents imm[31:12], so we mask to 20 bits
-            value = value & 0xFFFFF
-        
-        # J-type
-        elif self.instruction_type == InsTyp.J:
-            # Mask to 21 bits
-            value = value & 0x1FFFFF
-            # Sign-extend from bit 20
-            if value & 0x100000:
-                value = value | 0xFFE00000
-
-        # convert to 32-bit representation
-        if value < 0:
-            value &= 0xFFFFFFFF
-        else:
-            value &= 0xFFFFFFFF
-
-        return value
 
     def to_hex(self, label_lookup:dict[str, LabelToken]) -> str:
         """
@@ -450,23 +370,16 @@ class InstructionToken(Token):
                 return bin_to_hex(bits)
 
             case InsTyp.U:
-                # get immediate as integer
-                imm_val = self.get_imm_value(label_lookup)
-                # U-type
-                imm20_val = imm_val & 0xFFFFF # 20 bits
-
-                # convert to bin
-                imm20_bits = dec_to_bin(imm20_val, 20)
-
+                imm = self.get_imm(label_lookup)
+                
                 bits = tuple([
                     *self.get_opcode(),
                     *self.reg_to_bin(self.rd),
-                    *imm20_bits
+                    *imm[12:32]  # Take bits [12:31] which represent imm[31:12]
                 ])
                 return bin_to_hex(bits)
 
             case InsTyp.J:
-                # LSB-first: opcode, rd, imm[12:20], imm[11], imm[1:11], imm[20]
                 imm = self.get_imm(label_lookup)
                 bits = tuple([
                     *self.get_opcode(),

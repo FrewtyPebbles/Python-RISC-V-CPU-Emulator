@@ -6,7 +6,10 @@ from alu import ALU
 from alu_control import ALUControl
 from memory import Bit, Bitx32, bin_str_to_bits, bin_to_dec, bin_to_hex, dec_to_hex, int_to_bits, Bits, repr_bits, shift_left_1, shift_left_2, sign_extend, slice_bits
 from gates import high_level_mux
-from control_unit import OPCODE_AUIPC, OPCODE_LUI, OPCODE_STORE, ControlUnit
+from control_unit import (
+    OPCODE_AUIPC, OPCODE_LUI, OPCODE_STORE, ControlUnit,
+    R_TYPE_OPCODES, I_TYPE_OPCODES, S_TYPE_OPCODES, B_TYPE_OPCODES, U_TYPE_OPCODES, J_TYPE_OPCODES
+)
 
 class DataPath:
     @dataclass
@@ -82,11 +85,16 @@ class DataPath:
             imm_j = self.control.get_imm_j(instruction)
 
             if self.config.show_step and self.config.show_immediate_values:
-                print("\tI-Type immediate", repr_bits(imm_i), "[ dec:", bin_to_dec(imm_i), "]")
-                print("\tS-Type immediate", repr_bits(imm_s), "[ dec:", bin_to_dec(imm_s), "]")
-                print("\tB-Type immediate", repr_bits(imm_b), "[ dec:", bin_to_dec(imm_b), "]")
-                print("\tU-Type immediate", repr_bits(imm_u), "[ dec:", bin_to_dec(imm_u), "]")
-                print("\tJ-Type immediate", repr_bits(imm_j), "[ dec:", bin_to_dec(imm_j), "]")
+                if opcode in I_TYPE_OPCODES:
+                    print("I-Type immediate\n\tBIN:", repr_bits(imm_i), "\n\tdec:", bin_to_dec(imm_i))
+                if opcode in S_TYPE_OPCODES:
+                    print("S-Type immediate\n\tBIN:", repr_bits(imm_s), "\n\tdec:", bin_to_dec(imm_s))
+                if opcode in B_TYPE_OPCODES:
+                    print("B-Type immediate\n\tBIN:", repr_bits(imm_b), "\n\tdec:", bin_to_dec(imm_b))
+                if opcode in U_TYPE_OPCODES:
+                    print("U-Type immediate\n\tBIN:", repr_bits(imm_u), "\n\tdec:", bin_to_dec(imm_u))
+                if opcode in J_TYPE_OPCODES:
+                    print("J-Type immediate\n\tBIN:", repr_bits(imm_j), "\n\tdec:", bin_to_dec(imm_j))
 
             # ALU source selection
             # Handle LUI/AUIPC specially

@@ -260,9 +260,9 @@ def bits_to_10_tup(bits:tuple[Bit,...]) -> tuple[Literal[1]|Literal[0],...]:
 
 def repr_bits(bits:Bits) -> str:
     ret = ""
-    for b_n, bit in enumerate(bits):
+    for b_n, bit in enumerate(reversed(bits), 1):
         ret += str(bit)
-        if b_n-3 % 4 == 0 and b_n != len(bits)-1:
+        if b_n % 8 == 0:
             ret += " "
 
     return ret

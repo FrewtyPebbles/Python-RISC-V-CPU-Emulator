@@ -14,8 +14,33 @@ OPCODE_SYSTEM = (1,1,0,0,0,1,1)
 OPCODE_MISC = (1,1,1,1,0,0,0)
 OPCODE_FP = (1,1,0,0,1,0,1)
 
+R_TYPE_OPCODES = {
+    (1, 1, 0, 0, 1, 1, 0),
+}
 
+I_TYPE_OPCODES = {
+    (1, 1, 0, 0, 1, 0, 0),
+    (1, 1, 0, 0, 0, 0, 0),
+    (1, 1, 1, 0, 0, 1, 1),
+    (1, 1, 0, 0, 1, 1, 1),
+}
 
+S_TYPE_OPCODES = {
+    (1, 1, 0, 0, 0, 1, 0),
+}
+
+B_TYPE_OPCODES = {
+    (1, 1, 0, 0, 0, 1, 1),
+}
+
+U_TYPE_OPCODES = {
+    (1, 1, 1, 0, 1, 1, 0),
+    (1, 1, 1, 0, 1, 0, 0),
+}
+
+J_TYPE_OPCODES = {
+    (1, 1, 1, 1, 0, 1, 1),
+}
 
 class ControlUnit:
     def __init__(self):

@@ -92,7 +92,7 @@ class MemoryUnit:
                 return
 
             if isinstance(address_byte, str):
-                addr_str = f"   {' '*len(address_byte)}     "
+                addr_str = f"  {' '*len(address_byte)}  "
                 if len(bytes_line_buffer) + len(addr_str) > term_size.columns:
                     lines.append(address_line_buffer)
                     lines.append(bytes_line_buffer)
@@ -100,10 +100,10 @@ class MemoryUnit:
                     bytes_line_buffer = ""
                 
                 address_line_buffer += addr_str
-                bytes_line_buffer += f"   {address_byte}"
+                bytes_line_buffer += f"  {address_byte}  "
             else:
-                address = hex(address_byte[0])
-                addr_str = f"{address}   "
+                address = f"0x{hex(address_byte[0])[2:]:0>8}"
+                addr_str = f"  {address}"
                 if len(bytes_line_buffer) + len(addr_str) > term_size.columns:
                     lines.append(address_line_buffer)
                     lines.append(bytes_line_buffer)
@@ -116,7 +116,7 @@ class MemoryUnit:
                 byte = repr(address_byte[1])
 
                 address_line_buffer += addr_str
-                bytes_line_buffer += f"     {byte}"
+                bytes_line_buffer += f"  {byte}  "
         
         for addresses_and_bytes in display_bytes:
             if addresses_and_bytes[0][0] > 0:
