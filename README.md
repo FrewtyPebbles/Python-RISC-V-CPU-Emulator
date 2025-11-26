@@ -115,6 +115,6 @@ You should then see the output file saved to the location specified by `-o`.
 This project contains 6 different testers to ensure each component is individually functional. These files perform unit tests, thus validating that each tested method works as intended and may be safely used.
 
 ## Architecture
-![Diagram for Reference](reference.png)
+![Diagram for Reference](rv32i_datapath.png)
 
 This was the diagram upon which we based our designs. We used this image to help us identify which components need to be connected where as well as how to process each bit in the instructions. 
