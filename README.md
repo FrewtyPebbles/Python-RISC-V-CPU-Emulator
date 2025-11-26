@@ -112,7 +112,8 @@ You should then see the output file saved to the location specified by `-o`.
  * JAL
 
 ## Testing
-This project contains 6 different testers to ensure each component is individually functional. These files perform unit tests, thus validating that each tested method works as intended and may be safely used.
+
+This project uses the pytest testing framework to perform unit tests to test specific components of the cpu.
 
 ## Architecture
 ![Diagram for Reference](rv32i_datapath.png)
