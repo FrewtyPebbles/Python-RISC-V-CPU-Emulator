@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from memory_unit import MemoryUnit
-from register_file import RegisterFile
+from rv32f_register_file import RV32FRegisterFile
+from rv32i_register_file import RV32IRegisterFile
 from instruction_memory import InstructionMemory, PC
 from alu import ALU
 from alu_control import ALUControl
@@ -38,7 +39,8 @@ class DataPath:
             show_writes
         )
         self.pc = PC(int_to_bits(0, 32))
-        self.register_file = RegisterFile()
+        self.rv32i_register_file = RV32IRegisterFile()
+        self.rv32f_register_file = RV32FRegisterFile()
         self.instruction_memory = InstructionMemory()
         self.alu = ALU()
         self.alu_control = ALUControl()
@@ -73,7 +75,7 @@ class DataPath:
                 print("\trs2", repr_bits(rs2))
 
             # Read registers (no write yet)
-            read_data_1, read_data_2 = self.register_file.update(
+            read_data_1, read_data_2 = self.rv32i_register_file.update(
                 rs1, rs2, rd, bin_str_to_bits("0"*32), 0
             )
 
@@ -138,7 +140,7 @@ class DataPath:
 
             # Write to register file
             if self.control.RegWrite:
-                self.register_file.update(rs1, rs2, rd, write_back_data, 1)
+                self.rv32i_register_file.update(rs1, rs2, rd, write_back_data, 1)
 
             # Branch and jump logic
             branch_taken = self.control.Branch and zero_flag
@@ -151,7 +153,7 @@ class DataPath:
             if self.config.show_step:
                 if self.config.show_registers:
                     print("Register File:")
-                    print(repr(self.register_file))
+                    print(repr(self.rv32i_register_file))
 
                 if self.config.show_memory:
                     print("Memory Unit:")

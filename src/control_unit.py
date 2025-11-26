@@ -13,6 +13,8 @@ OPCODE_JAL = (1,1,1,1,0,1,1)
 OPCODE_SYSTEM = (1,1,0,0,0,1,1)
 OPCODE_MISC = (1,1,1,1,0,0,0)
 OPCODE_FP = (1,1,0,0,1,0,1)
+OPCODE_FLW = (1,1,0,0,0,0,1) # Load Float
+OPCODE_FSW = (1,1,0,0,0,1,1) # Store Float
 
 R_TYPE_OPCODES = {
     (1, 1, 0, 0, 1, 1, 0),
@@ -96,7 +98,17 @@ class ControlUnit:
         self.Branch = 0
         self.Jump = 0
         self.ALUOp = (0, 0)  # 2-bit tuple
+        
+        # RV32F Signals
         self.FPUOp = 0
+        self.FPRegWrite = 0
+        self.FPRegRead = 0
+        self.FPALUSrc = 0
+        self.FPMemToReg = 0
+        self.RegFileSel = 0
+        self.FPToInt = 0
+        self.IntToFP = 0
+        
 
     def decode(self, opcode: Bitx7):
 
@@ -151,9 +163,28 @@ class ControlUnit:
 
         # FPU op
         elif opcode == OPCODE_FP:
-            self.RegWrite = 1
             self.FPUOp = 1
-            self.ALUOp = (1, 1)    # 11
+            self.FPRegWrite = 1
+            self.FPRegRead = 1
+            self.RegFileSel = 1
+            self.ALUOp = (1, 1)   # 11
+
+        # FLW (LOAD)
+        elif opcode == OPCODE_FLW:
+            self.ALUSrc = 1
+            self.FPMemToReg = 1
+            self.FPRegWrite = 1
+            self.MemRead = 1
+            self.RegFileSel = 1
+            self.ALUOp = (0, 0)
+
+        # FSW (WRITE)
+        elif opcode == OPCODE_FSW:
+            self.ALUSrc = 1
+            self.MemWrite = 1
+            self.FPRegRead = 1
+            self.RegFileSel = 1
+            self.ALUOp = (0, 0)
         
         # AUIPC
         elif opcode == OPCODE_AUIPC:
