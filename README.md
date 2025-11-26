@@ -6,7 +6,7 @@ This CPU emulator emulates at the bit level with many low level gates emulated.
 
 ## AI Usage
 
- - AI was used to generate a portion of the unit tests, assisting with minor bug fixes, and for generating assembly files.
+ - AI was used to generate a portion of the unit tests, assisting with minor bug fixes, for generating `.asm` assembly files, and to help understand the bit manipulation in generating the immediate values in the assembler.
 
 ## Installation
 
