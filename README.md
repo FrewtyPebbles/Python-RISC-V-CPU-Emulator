@@ -1,6 +1,6 @@
 # RISC V 32-Bit CPU Emulator
 
- - By William Lim, Mathew Barlund, and Adam Kaci
+ - By William Lim, Mathew Barlund
 
 ## AI Usage
 
@@ -35,6 +35,37 @@ To run a program with the emulator use the command in the terminal:
 
 ```
 riskv-sim {input_file.hex or input_file.asm}
+```
+
+To see what flags you can include do:
+
+```
+riscv-sim --help
+```
+
+These flags show different debug information after each step. Here is the help command output for your convenience:
+
+```
+usage: riscv-sim {program file path}
+  use --help for more information
+
+An RV32I CPU Emulator with FPU extension. It will attempt to assemble and run the provided RV32I assembly source file on the RV32I emulator.
+
+positional arguments:
+  source                Path to input assembly or hex file.
+
+options:
+  -h, --help            show this help message and exit
+  --assemble_only       Flag to assemble a file without running it.
+  --dont_show_steps     Flag to not show every instruction step the emulator takes.
+  --show_memory         Flag to show all the in use memory in the Memory Unit.
+  --show_reads          Flag to show whenever the Memory Unit is read from.
+  --show_writes         Flag to show whenever the Memory Unit is written to.
+  --show_immediate_values
+                        Flag to show all possible immediate values by type after every step.
+  --show_registers      Flag to show all registers after every step.
+  -o OUTPUT, --output OUTPUT
+                        Path to output hex file. This only works when the '--assemble_only' argument flag is included
 ```
 
 ## Using the assembler

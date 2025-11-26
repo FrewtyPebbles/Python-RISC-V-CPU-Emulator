@@ -10,7 +10,7 @@ def main():
     )
     parser.add_argument("source", help="Path to input assembly or hex file.")
     parser.add_argument("--assemble_only", action="store_true", help="Flag to assemble a file without running it.")
-    parser.add_argument("--show_steps", action="store_true", help="Flag to show every instruction step the emulator takes.")
+    parser.add_argument("--dont_show_steps", action="store_true", help="Flag to not show every instruction step the emulator takes.")
     parser.add_argument("--show_memory", action="store_true", help="Flag to show all the in use memory in the Memory Unit.")
     parser.add_argument("--show_reads", action="store_true", help="Flag to show whenever the Memory Unit is read from.")
     parser.add_argument("--show_writes", action="store_true", help="Flag to show whenever the Memory Unit is written to.")
@@ -26,7 +26,7 @@ def main():
         ## Run the program
 
         source:str = args.source
-        show_steps:bool = args.show_steps
+        show_steps:bool = not args.dont_show_steps
         show_memory:bool = args.show_memory
         show_reads:bool = args.show_reads
         show_writes:bool = args.show_writes
