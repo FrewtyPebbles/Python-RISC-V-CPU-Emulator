@@ -141,6 +141,13 @@ class DataPath:
             self.pc.value = high_level_mux(next_pc, pc_jump, self.control.Jump)
 
             if self.config.show_step:
+                if self.config.show_registers:
+                    print("Register File:")
+                    print(repr(self.register_file))
+
+                if self.config.show_memory:
+                    print("Memory Unit:")
+                    print(repr(self.memory))
                 print("}")
 
             step_count += 1

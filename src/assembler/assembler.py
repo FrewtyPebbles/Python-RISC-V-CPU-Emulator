@@ -17,7 +17,7 @@ class Assembler:
             if not line or line.startswith('#'):
                 continue  # skip empty lines/comments
             
-            if all([line.startswith(prefix) for prefix in [
+            if any([line.startswith(prefix) for prefix in [
                 ".globl", ".section", ".text", ".data", ".bss"
             ]]):
                 continue

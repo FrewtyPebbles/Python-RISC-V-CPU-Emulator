@@ -61,7 +61,8 @@ class Byte:
         return bin_to_hex(self.read_bits())
     
     def __repr__(self):
-        return "".join([repr(bit) for bit in self.memory])
+        # Switch to MSB-First
+        return "".join([repr(bit) for bit in reversed(self.memory)])
     
     
 
@@ -119,7 +120,8 @@ class Memory:
         return bin_to_hex(self.read_bits())
     
     def __repr__(self):
-        return " ".join([repr(byte) for byte in self.memory])
+        # Switch to MSB-First
+        return " ".join([repr(byte) for byte in reversed(self.memory)])
     
 
 ## UTILITY FUNCTIONS

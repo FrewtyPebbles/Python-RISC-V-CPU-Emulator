@@ -114,7 +114,6 @@ class LabelToken(Token):
         self.address = dec_to_bin(address, 32) if isinstance(address, int) else address
         self.address_dec = address if isinstance(address, int) else bin_to_dec(address)
 
-
 class InstructionToken(Token):
     token_type = TokenType.INSTRUCTION
     instruction_type:InstructionType
@@ -238,7 +237,7 @@ class InstructionToken(Token):
 
         raise SyntaxError(f"instruction '{self.instruction}' does not have a specified opcode")
     
-    def get_imm(self, label_lookup: dict[str, 'LabelToken'], octal_enabled: bool = True) -> tuple[Bit, ...]:
+    def get_imm(self, label_lookup: dict[str, LabelToken], octal_enabled: bool = True) -> tuple[Bit, ...]:
         if self.instruction_type == InsTyp.R:
             return None
 
