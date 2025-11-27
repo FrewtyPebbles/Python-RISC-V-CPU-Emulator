@@ -109,7 +109,7 @@ class Memory:
         return self.size
 
     def write_bits(self, bits:Iterable[Bit]):
-        assert len(bits) == len(self)
+        assert len(bits) == len(self), f"{len(bits)} bits != {len(self)} bits"
         for b_n, bit in enumerate(bits):
             self[b_n] = bit
 
@@ -127,14 +127,20 @@ class Memory:
 ## UTILITY FUNCTIONS
 
 
-def dec_to_bin(value: int, size: int) -> tuple[Bit, ...]:
+def dec_to_bin(value: int, size: int) -> tuple[int, ...]:
+    # two's complement
     if value < 0:
-        raise ValueError("Only non-negative integers supported.")
+        value = (1 << size) + value
+
     bits = []
     for _ in range(size):
-        bits.append(int(bool(value & 1)))
+        bits.append(value & 1)  # LSB first
         value >>= 1
-    return tuple(bits)  # LSB first
+
+    if value != 0:
+        raise ValueError("Value does not fit in the given bit size")
+
+    return tuple(bits)
 
 def dec_to_bin_signed(value: int, size: int) -> tuple[Bit, ...]:
     min_val = -(1 << (size - 1))
@@ -151,8 +157,13 @@ def dec_to_bin_signed(value: int, size: int) -> tuple[Bit, ...]:
         value >>= 1
     return tuple(bits)
 
-def bin_to_dec(bits: Iterable[Bit]) -> int:
-    return sum(bit << i for i, bit in enumerate(bits))
+def bin_to_dec(bits: Iterable[Bit], signed: bool = False) -> int:
+    bits = list(bits)  # ensure indexing works
+    n = len(bits)
+    value = sum(bit << i for i, bit in enumerate(bits))
+    if signed and bits[-1] == 1:  # MSB is 1 → negative number
+        value -= 1 << n            # subtract 2^n
+    return value
 
 def dec_to_hex(num:int):
     return hex(num)[2:].upper()

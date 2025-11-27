@@ -12,7 +12,7 @@ class RV32FRegisterFile:
     def __repr__(self) -> str:
         display_list:list[str] = []
         for r_n, register in enumerate(self.registers):
-            display_list.append(f"f{r_n:>2} {register}")
+            display_list.append(f"f{r_n:<2} {register}")
         
         lines:list[str] = []
         line_buffer = ""
@@ -46,7 +46,7 @@ class RV32FRegisterFile:
         read2 = self.registers[read_reg_2_pos].read_bits()
 
 
-        if control_reg_write and write_reg_pos != 0:
+        if control_reg_write:
             write_reg = self.registers[write_reg_pos]
             write_reg.write_bits(write_data)
 

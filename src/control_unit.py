@@ -13,8 +13,8 @@ OPCODE_JAL = (1,1,1,1,0,1,1)
 OPCODE_SYSTEM = (1,1,0,0,0,1,1)
 OPCODE_MISC = (1,1,1,1,0,0,0)
 OPCODE_FP = (1,1,0,0,1,0,1)
-OPCODE_FLW = (1,1,0,0,0,0,1) # Load Float
-OPCODE_FSW = (1,1,0,0,0,1,1) # Store Float
+OPCODE_FLW = (1,1,1,0,0,0,0) # Load Float
+OPCODE_FSW = (1,1,1,0,0,1,0) # Store Float
 
 R_TYPE_OPCODES = {
     (1, 1, 0, 0, 1, 1, 0),

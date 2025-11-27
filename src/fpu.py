@@ -1,142 +1,256 @@
-from memory import Bit, Bitx5, Bitx8, Bitx23, Bitx24, Bitx32, Bitx48, bin_to_dec, dec_to_bin_signed
+from memory import Bit, Bitx32, Bitx5, bin_to_dec, dec_to_bin, hex_to_bin, sign_extend
 from alu import ALU
 
-class FPU32:
-    alu = ALU()
-    
-    # 127, in a 32-bit binary string
-    BIAS_BITS = (0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,1,1,1,1,1,1,1)
+import fpu_control as fc
+import gates as g
 
-    ONE_32 = (0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,1)
-    ZERO_32 = (0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0)
+EXP_MAX = (1,1,1,1,1,1,1,1)
+EXP_ZERO = (0,0,0,0,0,0,0,0)
+MANT_ZERO = (0,) * 23
+ZERO_32 = (0,) * 32
 
-    EXP_ALL_ONES  = (1, 1, 1, 1, 1, 1, 1, 1)
-    EXP_ALL_ZEROS = (0, 0, 0, 0, 0, 0, 0, 0)
-
-    def update(self):
+class FPU:
+    def __init__(self):
         pass
-
-    def f_add(self, operand_1:Bitx32, operand_2:Bitx32) -> Bitx32: 
-        sign_1 = operand_1[0] #0 for pos, 1 for neg
-        sign_2 = operand_2[0]
-
-        stored_exp_1 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] + operand_1[1:9] #value of exponent as stored, converted to 32-bit
-        stored_exp_2 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] + operand_2[1:9]
-
-        mantissa_1 = [0,0,0,0,0,0,0,1] + operand_1[9:32] #normalized value of mantissa in 32-bits, including implied '1' bit
-        mantissa_2 = [0,0,0,0,0,0,0,1] + operand_2[9:32]
-
-        true_exp_1 = bin_to_dec(self.alu.op_sub(stored_exp_1, self.BIAS_BITS)[1]) #remove bias and calculate true value of exponent 
-        true_exp_2 = bin_to_dec(self.alu.op_sub(stored_exp_2, self.BIAS_BITS)[1])
-
-        delta_e = abs(true_exp_1 - true_exp_2) #difference between exponents
-
-        res_exp
-
-        if true_exp_1 > true_exp_2: #shift the mantissa of the smaller exponent value delta_e times
-            res_exp = true_exp_1
-            mantissa_2 = self.alu.op_sra(mantissa_2, dec_to_bin_signed(delta_e))[1]
-        else:
-            res_exp = true_exp_2
-            mantissa_1 = self.alu.op_sra(mantissa_1, dec_to_bin_signed(delta_e))[1]
-                
-        res_mantissa
-
-        if sign_1 == sign_2:
-            res_mantissa = self.alu.op_add(mantissa_1, mantissa_2)[1]
-        else:
-            res_mantissa = self.alu.op_sub(mantissa_1, mantissa_2)[1]
-        
-        res_mantissa, res_exp = self.normalize_add(res_mantissa, res_exp) #normalize result to 1.F format
-        res_mantissa = self.round_to_nearest_ties_to_even([0,0,0,0,0,0,0,0] + res_mantissa)
-        
-        val_mantissa_1 = bin_to_dec(mantissa_1)
-        val_mantissa_2 = bin_to_dec(mantissa_2)
-        
-        res_sign = sign_2 if val_mantissa_2>val_mantissa_1 and sign_1 != sign_2 else sign_1 #determining sign
-
-        res:Bitx32 = res_sign + res_exp + res_mantissa #assembling result to be returned
-        return res
-
-
-    def f_mul(self, operand_1:Bitx32, operand_2:Bitx32) -> Bitx32: 
-        sign_1 = operand_1[0] #0 for pos, 1 for neg
-        sign_2 = operand_2[0]
-        res_sign_bit = 0 if sign_1 == sign_2 else 1
-
-        stored_exp_1 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] + operand_1[1:9] #value of exponent as stored, converted to 32-bit
-        stored_exp_2 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] + operand_2[1:9]
-
-        mantissa_1 = [0,0,0,0,0,0,0,1] + operand_1[9:32] #normalized value of mantissa in 32-bits, including implied '1' bit
-        mantissa_2 = [0,0,0,0,0,0,0,1] + operand_2[9:32]
-
-        true_exp_1 = bin_to_dec(self.alu.op_sub(stored_exp_1, self.BIAS_BITS)[1]) #remove bias and calculate true value of exponent 
-        true_exp_2 = bin_to_dec(self.alu.op_sub(stored_exp_2, self.BIAS_BITS)[1])
-        true_res_exp = true_exp_1 + true_exp_2
-
-        raw_res_mantissa:Bitx48 = binary_mul(mantissa_1, mantissa_2)
-        {raw_res_mantissa, true_res_exp} = self.normalize_mul(raw_res_mantissa, stored_res_exp)
-        res_mantissa:Bitx23 = self.round_to_nearest_ties_to_even(raw_res_mantissa)
-        stored_res_exp = self.alu.op_add(dec_to_bin_signed(true_res_exp), self.BIAS_BITS)[1][-8:]
-        
-        res:Bitx32 = [res_sign_bit] + stored_res_exp + res_mantissa
-        return res
     
+    def update(self, operation: Bitx5, read_data_1: Bitx32, read_data_2: Bitx32) -> tuple[Bit, Bitx32]:
+        """
+        Returns Zero bit signal and 32-bit FPU result.
+        Zero bit is 1 for comparison operations that are true.
+        """
+        match operation:
+            case fc.CTRL_FPU_ADD:
+                return self.op_add(read_data_1, read_data_2)
+            case fc.CTRL_FPU_SUB:
+                return self.op_sub(read_data_1, read_data_2)
+            case fc.CTRL_FPU_MUL:
+                return self.op_mul(read_data_1, read_data_2)
+            # TODO:
+            case fc.CTRL_FPU_DIV:
+                return self.op_div(read_data_1, read_data_2)
+            case fc.CTRL_FPU_SQRT:
+                return self.op_sqrt(read_data_1)
+            case fc.CTRL_FPU_MIN:
+                return self.op_min(read_data_1, read_data_2)
+            case fc.CTRL_FPU_MAX:
+                return self.op_max(read_data_1, read_data_2)
+            case fc.CTRL_FPU_EQ:
+                return self.op_eq(read_data_1, read_data_2)
+            case fc.CTRL_FPU_LT:
+                return self.op_lt(read_data_1, read_data_2)
+            case fc.CTRL_FPU_LE:
+                return self.op_le(read_data_1, read_data_2)
+            case _:
+                raise RuntimeError(f"FPU Operation not supported {operation}")
+    
+    @staticmethod
+    def compute_zero(res: Bitx32) -> Bit:
+        return int(all(b == 0 for b in res))
+    
+    @classmethod
+    def op_add(cls, read_data_1: Bitx32, read_data_2: Bitx32) -> tuple[Bit, Bitx32]:
+        # Get components
+        rd1 = read_data_1
+        rd2 = read_data_2
 
-    def normalize_add(self, operand:Bitx32, exponent) -> {Bitx32, int}: 
-        implied_bit = operand[8]
-        if implied_bit:
-            operand = self.alu.op_sra(operand, self.ONE_32)
-            exponent += 1
-        else:
-            while not implied_bit:
-                exponent -= 1
-                operand = self.alu.op_sll(operand, self.ONE_32)
+        sign_rd1 = rd1[31]
+        exp_rd1 = rd1[23:31]
+        mant_rd1 = rd1[0:23]
+
+        sign_rd2 = rd2[31]
+        exp_rd2 = rd2[23:31]
+        mant_rd2 = rd2[0:23]
+
+        # Zero
+        if exp_rd1 == 0 and cls.compute_zero(mant_rd1):
+            return cls.compute_zero(rd2), rd2
+        if exp_rd2 == 0 and cls.compute_zero(mant_rd2):
+            return cls.compute_zero(rd1), rd1
+
+        # Infinity
+        if exp_rd1 == EXP_MAX:
+            return cls.compute_zero(rd1), rd1
+        if exp_rd2 == EXP_MAX:
+            return cls.compute_zero(rd2), rd2
         
-        return {operand, exponent}
-    
-    def normalize_mul(self, operand:Bitx48, exponent) -> {Bitx32, int}:
-        implied_bit = operand[8]
-        while not implied_bit:
-            operand = self.alu.op_sra(operand, self.ONE_32)
-            exponent += 1
-        return {operand, exponent}
-    
-    def binary_mul(self, operand_1: Bitx23, operand_2: Bitx23) -> Bitx48:
-        res:Bitx48
-        operand_1 = [1] + operand_1
-        operand_2 = [1] + operand_2 #adding implied bit
+        # Add leading 1 for normalized nums
+        mant_rd1_full = (1,) + mant_rd1 if exp_rd1 != EXP_ZERO else (0,) + mant_rd1
+        mant_rd2_full = (1,) + mant_rd2 if exp_rd2 != EXP_ZERO else (0,) + mant_rd2
 
-        partial_products:list
-        for bit in range(24): #for every bit in operand_2
-            if operand_2[bit]:
-                partial_product = operand_1
-                for _ in bit:
-                    partial_product += [0]
-                partial_products.append(partial_product) #if partial product is significant (not zero), store it
+        # Adjust exponents if denormalized
+        if exp_rd1 == EXP_ZERO:
+            exp_rd1 = (1,0,0,0,0,0,0,0)
+        if exp_rd2 == EXP_ZERO:
+            exp_rd2 = (1,0,0,0,0,0,0,0)
 
-        for item in partial_products:
-            res = self.alu.op_add(res[-32:], item) #adding up partial products
-
-        return res
-    
-    def round_to_nearest_ties_to_even(self, to_be_rounded:Bitx48) -> Bitx23:
-        g_bit = to_be_rounded[24]
-        r_bit = to_be_rounded[25]
-        s_bits = to_be_rounded[26:]
-
-        s_bit
-        for _ in range(len(s_bits)):
-            s_bit = s_bit or s_bits[_]
-
-        if not g_bit:
-            return to_be_rounded[0:22] 
-
-        elif g_bit and (r_bit or s_bit):
-            to_be_rounded = self.alu.op_add([0,0,0,0,0,0,0,0] + to_be_rounded[:24], self.ONE_32)[1]
-            return to_be_rounded[0:22]
-        else:
-            if to_be_rounded[23]:
-                return self.alu.op_add([0,0,0,0,0,0,0,0] + to_be_rounded[:24], self.ONE_32)[1][0:22]
+        # Align mantissas by shifting the smaller exponent
+        if g.high_level_min(exp_rd1, exp_rd2) == exp_rd2:
+            shift = ALU.op_sub(sign_extend(exp_rd1, 32), sign_extend(exp_rd2, 32))[1]
+            shift_dec = bin_to_dec(shift, True)
+            if shift_dec < 24:
+                mant_rd2_full = (0,) * shift_dec + mant_rd2_full
+                mant_rd2_full = mant_rd2_full[:24]
             else:
-                return to_be_rounded[0:22]
+                mant_rd2_full = (0,) * 24
+            exp_result = exp_rd1
+        elif g.high_level_min(exp_rd1, exp_rd2) == exp_rd1:
+            shift = ALU.op_sub(sign_extend(exp_rd2, 32), sign_extend(exp_rd1, 32))[1]
+            shift_dec = bin_to_dec(shift, True)
+            if shift_dec < 24:
+                mant_rd1_full = (0,) * shift_dec + mant_rd1_full
+                mant_rd1_full = mant_rd1_full[:24]
+            else:
+                mant_rd1_full = (0,) * 24
+            exp_result = exp_rd2
+        else:
+            exp_result = exp_rd1
+
+        # add / subtract
+        if sign_rd1 == sign_rd2:
+            mant_result = ALU.op_add(sign_extend(mant_rd1_full), sign_extend(mant_rd2_full))[1][:24]
+            sign_result = sign_rd1
+        else:
+            # Different signs
+            if g.high_level_min(mant_rd1_full, mant_rd2_full) == mant_rd2_full or mant_rd1_full == mant_rd2_full:
+                mant_result = ALU.op_sub(sign_extend(mant_rd1_full), sign_extend(mant_rd2_full))[1][:24]
+                sign_result = sign_rd1
+            else:
+                mant_result = ALU.op_sub(sign_extend(mant_rd2_full), sign_extend(mant_rd1_full))[1][:24]
+                sign_result = sign_rd2
+
+        # Handle zero
+        if mant_result == MANT_ZERO:
+            return ZERO_32
+        
+        bit_pos = len(mant_result) - 1
+
+        if bit_pos > 23:
+            # overflow
+            shift_dec = bit_pos - 23
+            mant_result = ALU.op_srl(sign_extend(mant_result), dec_to_bin(shift_dec, 32))[1][:24]
+            exp_result = ALU.op_add(sign_extend(exp_result), dec_to_bin(shift_dec, 32))[1][:8]
+        elif bit_pos < 23:
+            # normalize
+            shift_dec = 23 - bit_pos
+            shift = dec_to_bin(shift_dec, 8)
+            if g.high_level_min(exp_result, shift) == shift:
+                mant_result = ALU.op_sll(sign_extend(mant_result), sign_extend(shift))[1][:24]
+                exp_result = ALU.op_sub(sign_extend(exp_result), sign_extend(shift))[1][:8]
+            else:
+                # denormalize
+                mant_result = ALU.op_sll(sign_extend(mant_result), ALU.op_sub(sign_extend(exp_result), dec_to_bin(1, 32))[1])[1][:24]
+                exp_result = EXP_ZERO
+
+        # Overflow check
+        if g.high_level_min(exp_result, EXP_MAX) == EXP_MAX or exp_result == EXP_MAX:
+            exp_result = EXP_MAX
+            mant_result = MANT_ZERO
+
+        # Remove leading 1 when normalized
+        if exp_result != EXP_ZERO:
+            mant_result = ALU.op_and(sign_extend(mant_result), hex_to_bin("7FFFFF", 32))[1][:23]
+
+        # pack the result back into IEEE754
+        result = mant_result + exp_result + (sign_result,)
+
+        return cls.compute_zero(result), result
+        
+
+    @classmethod
+    def op_sub(cls, read_data_1: Bitx32, read_data_2: Bitx32) -> Bitx32:
+        rd2_negated = read_data_2[:31] + (1 - read_data_2[31],)
+        # rd1 + (-rd2)
+        result = cls.op_add(read_data_1, rd2_negated)
+        return cls.compute_zero(result), result
+    
+    @classmethod
+    def op_mul(cls, read_data_1: Bitx32, read_data_2: Bitx32) -> Bitx32:
+        # Extract components from a
+        rd1 = read_data_1
+        rd2 = read_data_2
+
+        sign_rd1 = rd1[31]
+        exp_rd1 = rd1[23:31]
+        mant_rd1 = rd1[0:23]
+        
+        # Extract components from b
+        sign_rd2 = rd2[31]
+        exp_rd2 = rd2[23:31]
+        mant_rd2 = rd2[0:23]
+
+        sign_result = g.xor_gate(sign_rd1, sign_rd2)
+
+        if (exp_rd1 == EXP_ZERO and mant_rd1 == MANT_ZERO) or \
+           (exp_rd2 == EXP_ZERO and mant_rd2 == MANT_ZERO):
+            return (0,) * 31 + (sign_result,)
+        
+        if exp_rd1 == EXP_MAX or exp_rd2 == EXP_MAX:
+            result_mant = (0,) * 23
+            return result_mant + EXP_MAX + (sign_result,)
+        
+        if exp_rd1 != EXP_ZERO:
+            mant_rd1_full = (1,) + mant_rd1
+        else:
+            mant_rd1_full = (0,) + mant_rd1
+
+        if exp_rd2 != EXP_ZERO:
+            mant_rd2_full = (1,) + mant_rd2
+        else:
+            mant_rd2_full = (0,) + mant_rd2
+
+        if exp_rd1 == EXP_ZERO:
+            exp_rd1 = (1,0,0,0,0,0,0,0)
+        if exp_rd2 == EXP_ZERO:
+            exp_rd2 = (1,0,0,0,0,0,0,0)
+
+        mant_result = (0,) * 48
+        for i in range(24):
+            if mant_rd2_full[i] == 1:
+                # Shift mant_a_full left by i positions and add to result
+                shifted_rd1 = (0,) * i + mant_rd1_full + (0,) * (48 - 24 - i)
+                mant_result = ALU.op_add(sign_extend(mant_result, 32), sign_extend(shifted_rd1[:32], 32))[1][:32]
+                if len(shifted_rd1) > 32:
+                    # Handle upper bits
+                    upper_shifted = shifted_rd1[32:48]
+                    upper_result = mant_result[32:48] if len(mant_result) >= 48 else (0,) * 16
+                    upper_sum = ALU.op_add(sign_extend(upper_result + (0,) * 16, 32), sign_extend(upper_shifted + (0,) * 16, 32))[1][:16]
+                    mant_result = mant_result[:32] + upper_sum
+
+        exp_bias = (1,1,1,1,1,1,1,0)  # 127 in 8-bit
+        exp_sum = ALU.op_add(sign_extend(exp_rd1, 32), sign_extend(exp_rd2, 32))[1][:8]
+        exp_result = ALU.op_sub(sign_extend(exp_sum, 32), sign_extend(exp_bias, 32))[1][:8]
+
+        if len(mant_result) >= 48 and mant_result[47] == 1:
+            # Shift right by 24
+            mant_result = ALU.op_srl(sign_extend(mant_result[:32], 32), dec_to_bin(24, 32))[1][:23]
+            # Add 1 to exponent
+            exp_result = ALU.op_add(sign_extend(exp_result, 32), dec_to_bin(1, 32))[1][:8]
+        else:
+            # Shift right by 23
+            mant_result = ALU.op_srl(sign_extend(mant_result[:32], 32), dec_to_bin(23, 32))[1][:23]
+
+        if g.high_level_min(exp_result, EXP_MAX) == EXP_MAX or exp_result == EXP_MAX:
+            exp_result = EXP_MAX
+            mant_result = MANT_ZERO
+        else:
+            # underflow
+            exp_check = ALU.op_sub(sign_extend(exp_result, 32), ZERO_32)[1]
+            if exp_check[31] == 1:  # Negative result means exp_result < 0
+                # Check if exp_result < -23
+                neg_23 = dec_to_bin(-23, 32)
+                if g.high_level_min(sign_extend(exp_result, 32), neg_23) == sign_extend(exp_result, 32):
+                    # Underflow to zero
+                    return ZERO_32[:31] + (sign_result,)
+                else:
+                    # Denormalized number: shift = 1 - exp_result
+                    shift_amount = ALU.op_sub(dec_to_bin(1, 32), sign_extend(exp_result, 32))[1]
+                    mant_result = ALU.op_srl(sign_extend(mant_result, 32), shift_amount)[1][:23]
+                    exp_result = EXP_ZERO
+
+        if exp_result != EXP_ZERO:
+            mant_result = ALU.op_and(sign_extend(mant_result, 32), hex_to_bin("7FFFFF", 32))[1][:23]
+        
+        # Pack result
+        result = mant_result + exp_result + (sign_result,)
+        
+        return cls.compute_zero(result), result

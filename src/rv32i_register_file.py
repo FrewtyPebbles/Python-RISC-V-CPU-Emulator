@@ -12,7 +12,7 @@ class RV32IRegisterFile:
     def __repr__(self) -> str:
         display_list:list[str] = []
         for r_n, register in enumerate(self.registers):
-            display_list.append(f"x{r_n:>2} {register}")
+            display_list.append(f"x{r_n:<2} {register}")
         
         lines:list[str] = []
         line_buffer = ""

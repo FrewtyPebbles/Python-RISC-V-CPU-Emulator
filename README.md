@@ -80,7 +80,7 @@ riskv-sim {input_file.asm} --assemble_only -o {outputfile.hex}
 ```
 You should then see the output file saved to the location specified by `-o`.
 
-## Supported Instruction Set
+## RV32I Supported Instruction Set
 
 ### R-Type
  * ADD
@@ -110,6 +110,19 @@ You should then see the output file saved to the location specified by `-o`.
 
 ### J-Type
  * JAL
+
+## RV32F Supported Instruction Set
+
+### R-Type
+ * fadd.s
+ * fsub.s
+ * fmul.s
+
+### I-Type
+ * flw
+
+### S-Type
+ * fsw
 
 ## Testing
 

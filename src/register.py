@@ -48,7 +48,7 @@ class FloatRegister32bit(Register32bit):
         return sum
     
     def __float__(self):
-        exponent:float = float(bin_to_dec(self.exponent_bits, True))
+        exponent:float = float(bin_to_dec(self.exponent_bits))
         fraction:float = self.fraction
         return (-1.0 if self.sign_bit else 1.0) * (1.0 + fraction) * pow(2.0, exponent - self.EXPONENT_BIAS)
 
