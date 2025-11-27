@@ -49,7 +49,7 @@ class FPU:
     
     @classmethod
     def op_add(cls, read_data_1: Bitx32, read_data_2: Bitx32) -> tuple[Bit, Bitx32]:
-        # Get components
+        # Get components (LSB-first)
         rd1 = read_data_1
         rd2 = read_data_2
 
@@ -62,9 +62,9 @@ class FPU:
         mant_rd2 = rd2[0:23]
 
         # Zero
-        if exp_rd1 == 0 and cls.compute_zero(mant_rd1):
+        if exp_rd1 == EXP_ZERO and mant_rd1 == MANT_ZERO:
             return cls.compute_zero(rd2), rd2
-        if exp_rd2 == 0 and cls.compute_zero(mant_rd2):
+        if exp_rd2 == EXP_ZERO and mant_rd2 == MANT_ZERO:
             return cls.compute_zero(rd1), rd1
 
         # Infinity
@@ -74,83 +74,147 @@ class FPU:
             return cls.compute_zero(rd2), rd2
         
         # Add leading 1 for normalized nums
-        mant_rd1_full = (1,) + mant_rd1 if exp_rd1 != EXP_ZERO else (0,) + mant_rd1
-        mant_rd2_full = (1,) + mant_rd2 if exp_rd2 != EXP_ZERO else (0,) + mant_rd2
+        mant_rd1_full = mant_rd1 + (1,) if exp_rd1 != EXP_ZERO else mant_rd1 + (0,)
+        mant_rd2_full = mant_rd2 + (1,) if exp_rd2 != EXP_ZERO else mant_rd2 + (0,)
 
         # Adjust exponents if denormalized
-        if exp_rd1 == EXP_ZERO:
-            exp_rd1 = (1,0,0,0,0,0,0,0)
-        if exp_rd2 == EXP_ZERO:
-            exp_rd2 = (1,0,0,0,0,0,0,0)
+        exp_rd1_working = exp_rd1 if exp_rd1 != EXP_ZERO else (1,0,0,0,0,0,0,0)
+        exp_rd2_working = exp_rd2 if exp_rd2 != EXP_ZERO else (1,0,0,0,0,0,0,0)
 
-        # Align mantissas by shifting the smaller exponent
-        if g.high_level_min(exp_rd1, exp_rd2) == exp_rd2:
-            shift = ALU.op_sub(sign_extend(exp_rd1, 32), sign_extend(exp_rd2, 32))[1]
-            shift_dec = bin_to_dec(shift, True)
+        # Align mantissas, shift smaller exponent
+        # keep lower bits and drop upper bits
+        if g.high_level_min(exp_rd1_working, exp_rd2_working) == exp_rd2_working:
+            # exp_rd1 > exp_rd2, need to shift mant_rd2 right
+            shift = ALU.op_sub(sign_extend(exp_rd1_working, 32), sign_extend(exp_rd2_working, 32))[1]
+            shift_dec = bin_to_dec(shift, False)
             if shift_dec < 24:
-                mant_rd2_full = (0,) * shift_dec + mant_rd2_full
-                mant_rd2_full = mant_rd2_full[:24]
+                # Right shift in LSB-first: drop lower bits, pad zeros at top
+                mant_rd2_full = mant_rd2_full[shift_dec:] + (0,) * shift_dec
+                if len(mant_rd2_full) > 24:
+                    mant_rd2_full = mant_rd2_full[:24]
+                elif len(mant_rd2_full) < 24:
+                    mant_rd2_full = mant_rd2_full + (0,) * (24 - len(mant_rd2_full))
             else:
                 mant_rd2_full = (0,) * 24
-            exp_result = exp_rd1
-        elif g.high_level_min(exp_rd1, exp_rd2) == exp_rd1:
-            shift = ALU.op_sub(sign_extend(exp_rd2, 32), sign_extend(exp_rd1, 32))[1]
-            shift_dec = bin_to_dec(shift, True)
+            exp_result = exp_rd1_working
+        elif g.high_level_min(exp_rd1_working, exp_rd2_working) == exp_rd1_working:
+            # exp_rd2 > exp_rd1, need to shift mant_rd1 right
+            shift = ALU.op_sub(sign_extend(exp_rd2_working, 32), sign_extend(exp_rd1_working, 32))[1]
+            shift_dec = bin_to_dec(shift, False)
             if shift_dec < 24:
-                mant_rd1_full = (0,) * shift_dec + mant_rd1_full
-                mant_rd1_full = mant_rd1_full[:24]
+                mant_rd1_full = mant_rd1_full[shift_dec:] + (0,) * shift_dec
+                if len(mant_rd1_full) > 24:
+                    mant_rd1_full = mant_rd1_full[:24]
+                elif len(mant_rd1_full) < 24:
+                    mant_rd1_full = mant_rd1_full + (0,) * (24 - len(mant_rd1_full))
             else:
                 mant_rd1_full = (0,) * 24
-            exp_result = exp_rd2
+            exp_result = exp_rd2_working
         else:
-            exp_result = exp_rd1
+            exp_result = exp_rd1_working
+
+        # Ensure both mantissas are exactly 24 bits
+        while len(mant_rd1_full) < 24:
+            mant_rd1_full = mant_rd1_full + (0,)
+        while len(mant_rd2_full) < 24:
+            mant_rd2_full = mant_rd2_full + (0,)
+        mant_rd1_full = mant_rd1_full[:24]
+        mant_rd2_full = mant_rd2_full[:24]
 
         # add / subtract
         if sign_rd1 == sign_rd2:
-            mant_result = ALU.op_add(sign_extend(mant_rd1_full), sign_extend(mant_rd2_full))[1][:24]
+            mant_result = ALU.op_add(sign_extend(mant_rd1_full, 32), sign_extend(mant_rd2_full, 32))[1][:25]
             sign_result = sign_rd1
         else:
             # Different signs
-            if g.high_level_min(mant_rd1_full, mant_rd2_full) == mant_rd2_full or mant_rd1_full == mant_rd2_full:
-                mant_result = ALU.op_sub(sign_extend(mant_rd1_full), sign_extend(mant_rd2_full))[1][:24]
+            # Compare magnitudes
+            mant1_ge_mant2 = True
+            for i in range(23, -1, -1):
+                if mant_rd1_full[i] > mant_rd2_full[i]:
+                    mant1_ge_mant2 = True
+                    break
+                elif mant_rd1_full[i] < mant_rd2_full[i]:
+                    mant1_ge_mant2 = False
+                    break
+            
+            if mant1_ge_mant2:
+                mant_result = ALU.op_sub(sign_extend(mant_rd1_full, 32), sign_extend(mant_rd2_full, 32))[1][:25]
                 sign_result = sign_rd1
             else:
-                mant_result = ALU.op_sub(sign_extend(mant_rd2_full), sign_extend(mant_rd1_full))[1][:24]
+                mant_result = ALU.op_sub(sign_extend(mant_rd2_full, 32), sign_extend(mant_rd1_full, 32))[1][:25]
                 sign_result = sign_rd2
 
-        # Handle zero
-        if mant_result == MANT_ZERO:
-            return ZERO_32
+        # Handle result of zero
+        if all(b == 0 for b in mant_result):
+            return 1, ZERO_32
         
-        bit_pos = len(mant_result) - 1
+        # Find the leading 1 position
+        leading_one_pos = -1
+        for i in range(len(mant_result) - 1, -1, -1):
+            if mant_result[i] == 1:
+                leading_one_pos = i
+                break
+        
+        if leading_one_pos == -1:
+            return 1, ZERO_32
 
-        if bit_pos > 23:
-            # overflow
-            shift_dec = bit_pos - 23
-            mant_result = ALU.op_srl(sign_extend(mant_result), dec_to_bin(shift_dec, 32))[1][:24]
-            exp_result = ALU.op_add(sign_extend(exp_result), dec_to_bin(shift_dec, 32))[1][:8]
-        elif bit_pos < 23:
-            # normalize
-            shift_dec = 23 - bit_pos
-            shift = dec_to_bin(shift_dec, 8)
-            if g.high_level_min(exp_result, shift) == shift:
-                mant_result = ALU.op_sll(sign_extend(mant_result), sign_extend(shift))[1][:24]
-                exp_result = ALU.op_sub(sign_extend(exp_result), sign_extend(shift))[1][:8]
+        # Normalize mantissa
+        if leading_one_pos > 23:
+            # Overflow: need to shift right
+            shift_dec = leading_one_pos - 23
+            mant_result = ALU.op_srl(sign_extend(mant_result, 32), dec_to_bin(shift_dec, 32))[1][:24]
+            exp_result = ALU.op_add(sign_extend(exp_result, 32), dec_to_bin(shift_dec, 32))[1][:8]
+        elif leading_one_pos < 23:
+            # Need to shift left to normalize
+            shift_dec = 23 - leading_one_pos
+            shift_bits = dec_to_bin(shift_dec, 32)
+            
+            # Check if we can shift without underflowing exponent
+            exp_cmp = ALU.op_sub(sign_extend(exp_result, 32), shift_bits)[1]
+            if exp_cmp[31] == 0:  # Result is non-negative
+                # Can normalize
+                mant_result = ALU.op_sll(sign_extend(mant_result, 32), shift_bits)[1][:24]
+                exp_result = exp_cmp[:8]
             else:
-                # denormalize
-                mant_result = ALU.op_sll(sign_extend(mant_result), ALU.op_sub(sign_extend(exp_result), dec_to_bin(1, 32))[1])[1][:24]
+                # create denormalized number
+                shift_available = ALU.op_sub(sign_extend(exp_result, 32), dec_to_bin(1, 32))[1]
+                if shift_available[31] == 0:  # Still have some room
+                    mant_result = ALU.op_sll(sign_extend(mant_result, 32), shift_available)[1][:24]
                 exp_result = EXP_ZERO
+        else:
+            # Already at position 23
+            mant_result = mant_result[:24]
 
         # Overflow check
-        if g.high_level_min(exp_result, EXP_MAX) == EXP_MAX or exp_result == EXP_MAX:
+        if all(exp_result[i] == EXP_MAX[i] for i in range(8)):
             exp_result = EXP_MAX
-            mant_result = MANT_ZERO
+            mant_result = MANT_ZERO + (0,)
+            result = mant_result[:23] + exp_result + (sign_result,)
+            return cls.compute_zero(result), result
 
-        # Remove leading 1 when normalized
+        # Check for exponent overflow during normalization
+        exp_overflow = False
+        for i in range(8):
+            if exp_result[i] != EXP_MAX[i]:
+                if exp_result[i] < EXP_MAX[i]:
+                    exp_overflow = False
+                else:
+                    exp_overflow = True
+                break
+        
+        if exp_overflow or all(exp_result[i] == EXP_MAX[i] for i in range(8)):
+            exp_result = EXP_MAX
+            mant_result = (0,) * 24
+            result = mant_result[:23] + exp_result + (sign_result,)
+            return cls.compute_zero(result), result
+
+        # Remove leading 1 when normalized (bit 23)
         if exp_result != EXP_ZERO:
-            mant_result = ALU.op_and(sign_extend(mant_result), hex_to_bin("7FFFFF", 32))[1][:23]
+            mant_result = mant_result[:23]
+        else:
+            mant_result = mant_result[:23]
 
-        # pack the result back into IEEE754
+        # Pack the result back into IEEE754 (LSB-first)
         result = mant_result + exp_result + (sign_result,)
 
         return cls.compute_zero(result), result
