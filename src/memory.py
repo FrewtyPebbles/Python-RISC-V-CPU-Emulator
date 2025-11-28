@@ -286,6 +286,19 @@ def shift_left_2(bits: Bits) -> Bitx32:
 def shift_left_1(bits: Bits) -> Bitx32:
     return (0,) + bits[:31]
 
+def shift_left(bits: tuple[int, ...], amount: int) -> tuple[int, ...]:
+    if amount <= 0:
+        return bits
+    return bits + (0,) * amount
+
+def shift_right(bits: tuple[int, ...], amount: int) -> tuple[int, ...]:
+    n = len(bits)
+    if amount <= 0:
+        return bits
+    if amount >= n:
+        return (0,) * n
+
+    return bits[amount:] + (0,) * amount
 
 def sign_extend(bits: Bits, target_len: int = 32) -> Bitx32:
     # LSB-first: bits[0] = LSB, extend MSBs
