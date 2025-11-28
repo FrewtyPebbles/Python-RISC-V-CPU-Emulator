@@ -1,9 +1,9 @@
 from memory import Bit, Bitx12, Bitx32, Bitx4, bin_to_dec, dec_to_bin
 
-import alu_control as ac
+import rv32i_alu_control as ac
 import gates as g
 
-class ALU:
+class RV32IALU:
     def __init__(self):
         pass
     
@@ -33,7 +33,7 @@ class ALU:
             case ac.CTRL_ALU_SLTU:
                 return self.op_sltu(read_data_1, read_data_2)
             case _:
-                raise RuntimeError(f"ALU Operation not supported {operation}")
+                raise RuntimeError(f"RV32IALU Operation not supported {operation}")
             
     @staticmethod
     def compute_zero(res: Bitx32) -> Bit:
@@ -48,7 +48,7 @@ class ALU:
             res_list[b_n] = bit
 
         res = tuple(res_list)
-        zero = ALU.compute_zero(res)
+        zero = RV32IALU.compute_zero(res)
         return zero, res
 
 
@@ -74,7 +74,7 @@ class ALU:
             res_list[b_n] = g.and_gate(read_data_1[b_n], read_data_2[b_n])
 
         res = tuple(res_list)
-        zero = ALU.compute_zero(res)
+        zero = RV32IALU.compute_zero(res)
         return zero, res
     
     @staticmethod
@@ -84,7 +84,7 @@ class ALU:
             res_list[b_n] = g.or_gate(read_data_1[b_n], read_data_2[b_n])
 
         res = tuple(res_list)
-        zero = ALU.compute_zero(res)
+        zero = RV32IALU.compute_zero(res)
         return zero, res
 
     @staticmethod
@@ -94,21 +94,21 @@ class ALU:
             res_list[b_n] = g.xor_gate(read_data_1[b_n], read_data_2[b_n])
 
         res = tuple(res_list)
-        zero = ALU.compute_zero(res)
+        zero = RV32IALU.compute_zero(res)
         return zero, res
 
     @staticmethod
     def op_sll(read_data_1:Bitx32, read_data_2:Bitx32):
         shift = min(bin_to_dec(read_data_2[0:5]), 32)
         res = read_data_1[shift:] + tuple(0 for _ in range(shift))
-        zero = ALU.compute_zero(res)
+        zero = RV32IALU.compute_zero(res)
         return zero, res
 
     @staticmethod
     def op_srl(read_data_1:Bitx32, read_data_2:Bitx32):
         shift = min(bin_to_dec(read_data_2[0:5]), 32)
         res = tuple(0 for _ in range(shift)) + read_data_1[:32 - shift]
-        zero = ALU.compute_zero(res)
+        zero = RV32IALU.compute_zero(res)
         return zero, res
 
     @staticmethod
@@ -116,7 +116,7 @@ class ALU:
         shift = min(bin_to_dec(read_data_2[0:5]), 32)
         sign_bit = read_data_1[31]
         res = tuple(sign_bit for _ in range(shift)) + read_data_1[:32 - shift]
-        zero = ALU.compute_zero(res)
+        zero = RV32IALU.compute_zero(res)
         return zero, res
 
     @staticmethod
@@ -129,7 +129,7 @@ class ALU:
 
         result = 1 if bits_to_signed(read_data_1) < bits_to_signed(read_data_2) else 0
         res = (result,) + (0,) * 31
-        zero = ALU.compute_zero(res)
+        zero = RV32IALU.compute_zero(res)
         return zero, res
 
     @staticmethod
@@ -138,5 +138,5 @@ class ALU:
         val_b = bin_to_dec(read_data_2)
         result = 1 if val_a < val_b else 0
         res = (result,) + (0,) * 31
-        zero = ALU.compute_zero(res)
+        zero = RV32IALU.compute_zero(res)
         return zero, res

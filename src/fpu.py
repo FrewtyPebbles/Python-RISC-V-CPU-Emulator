@@ -1,5 +1,5 @@
 from memory import Bit, Bitx32, Bitx5, bin_to_dec, dec_to_bin, hex_to_bin, sign_extend
-from alu import ALU
+from rv32i_alu import RV32IALU
 
 import fpu_control as fc
 import gates as g
@@ -85,7 +85,7 @@ class FPU:
         # keep lower bits and drop upper bits
         if g.high_level_min(exp_rd1_working, exp_rd2_working) == exp_rd2_working:
             # exp_rd1 > exp_rd2, need to shift mant_rd2 right
-            shift = ALU.op_sub(sign_extend(exp_rd1_working, 32), sign_extend(exp_rd2_working, 32))[1]
+            shift = RV32IALU.op_sub(sign_extend(exp_rd1_working, 32), sign_extend(exp_rd2_working, 32))[1]
             shift_dec = bin_to_dec(shift, False)
             if shift_dec < 24:
                 # Right shift in LSB-first: drop lower bits, pad zeros at top
@@ -99,7 +99,7 @@ class FPU:
             exp_result = exp_rd1_working
         elif g.high_level_min(exp_rd1_working, exp_rd2_working) == exp_rd1_working:
             # exp_rd2 > exp_rd1, need to shift mant_rd1 right
-            shift = ALU.op_sub(sign_extend(exp_rd2_working, 32), sign_extend(exp_rd1_working, 32))[1]
+            shift = RV32IALU.op_sub(sign_extend(exp_rd2_working, 32), sign_extend(exp_rd1_working, 32))[1]
             shift_dec = bin_to_dec(shift, False)
             if shift_dec < 24:
                 mant_rd1_full = mant_rd1_full[shift_dec:] + (0,) * shift_dec
@@ -123,7 +123,7 @@ class FPU:
 
         # add / subtract
         if sign_rd1 == sign_rd2:
-            mant_result = ALU.op_add(sign_extend(mant_rd1_full, 32), sign_extend(mant_rd2_full, 32))[1][:25]
+            mant_result = RV32IALU.op_add(sign_extend(mant_rd1_full, 32), sign_extend(mant_rd2_full, 32))[1][:25]
             sign_result = sign_rd1
         else:
             # Different signs
@@ -138,10 +138,10 @@ class FPU:
                     break
             
             if mant1_ge_mant2:
-                mant_result = ALU.op_sub(sign_extend(mant_rd1_full, 32), sign_extend(mant_rd2_full, 32))[1][:25]
+                mant_result = RV32IALU.op_sub(sign_extend(mant_rd1_full, 32), sign_extend(mant_rd2_full, 32))[1][:25]
                 sign_result = sign_rd1
             else:
-                mant_result = ALU.op_sub(sign_extend(mant_rd2_full, 32), sign_extend(mant_rd1_full, 32))[1][:25]
+                mant_result = RV32IALU.op_sub(sign_extend(mant_rd2_full, 32), sign_extend(mant_rd1_full, 32))[1][:25]
                 sign_result = sign_rd2
 
         # Handle result of zero
@@ -162,24 +162,24 @@ class FPU:
         if leading_one_pos > 23:
             # Overflow: need to shift right
             shift_dec = leading_one_pos - 23
-            mant_result = ALU.op_srl(sign_extend(mant_result, 32), dec_to_bin(shift_dec, 32))[1][:24]
-            exp_result = ALU.op_add(sign_extend(exp_result, 32), dec_to_bin(shift_dec, 32))[1][:8]
+            mant_result = RV32IALU.op_srl(sign_extend(mant_result, 32), dec_to_bin(shift_dec, 32))[1][:24]
+            exp_result = RV32IALU.op_add(sign_extend(exp_result, 32), dec_to_bin(shift_dec, 32))[1][:8]
         elif leading_one_pos < 23:
             # Need to shift left to normalize
             shift_dec = 23 - leading_one_pos
             shift_bits = dec_to_bin(shift_dec, 32)
             
             # Check if we can shift without underflowing exponent
-            exp_cmp = ALU.op_sub(sign_extend(exp_result, 32), shift_bits)[1]
+            exp_cmp = RV32IALU.op_sub(sign_extend(exp_result, 32), shift_bits)[1]
             if exp_cmp[31] == 0:  # Result is non-negative
                 # Can normalize
-                mant_result = ALU.op_sll(sign_extend(mant_result, 32), shift_bits)[1][:24]
+                mant_result = RV32IALU.op_sll(sign_extend(mant_result, 32), shift_bits)[1][:24]
                 exp_result = exp_cmp[:8]
             else:
                 # create denormalized number
-                shift_available = ALU.op_sub(sign_extend(exp_result, 32), dec_to_bin(1, 32))[1]
+                shift_available = RV32IALU.op_sub(sign_extend(exp_result, 32), dec_to_bin(1, 32))[1]
                 if shift_available[31] == 0:  # Still have some room
-                    mant_result = ALU.op_sll(sign_extend(mant_result, 32), shift_available)[1][:24]
+                    mant_result = RV32IALU.op_sll(sign_extend(mant_result, 32), shift_available)[1][:24]
                 exp_result = EXP_ZERO
         else:
             # Already at position 23
@@ -272,33 +272,33 @@ class FPU:
             if mant_rd2_full[i] == 1:
                 # Shift mant_a_full left by i positions and add to result
                 shifted_rd1 = (0,) * i + mant_rd1_full + (0,) * (48 - 24 - i)
-                mant_result = ALU.op_add(sign_extend(mant_result, 32), sign_extend(shifted_rd1[:32], 32))[1][:32]
+                mant_result = RV32IALU.op_add(sign_extend(mant_result, 32), sign_extend(shifted_rd1[:32], 32))[1][:32]
                 if len(shifted_rd1) > 32:
                     # Handle upper bits
                     upper_shifted = shifted_rd1[32:48]
                     upper_result = mant_result[32:48] if len(mant_result) >= 48 else (0,) * 16
-                    upper_sum = ALU.op_add(sign_extend(upper_result + (0,) * 16, 32), sign_extend(upper_shifted + (0,) * 16, 32))[1][:16]
+                    upper_sum = RV32IALU.op_add(sign_extend(upper_result + (0,) * 16, 32), sign_extend(upper_shifted + (0,) * 16, 32))[1][:16]
                     mant_result = mant_result[:32] + upper_sum
 
         exp_bias = (1,1,1,1,1,1,1,0)  # 127 in 8-bit
-        exp_sum = ALU.op_add(sign_extend(exp_rd1, 32), sign_extend(exp_rd2, 32))[1][:8]
-        exp_result = ALU.op_sub(sign_extend(exp_sum, 32), sign_extend(exp_bias, 32))[1][:8]
+        exp_sum = RV32IALU.op_add(sign_extend(exp_rd1, 32), sign_extend(exp_rd2, 32))[1][:8]
+        exp_result = RV32IALU.op_sub(sign_extend(exp_sum, 32), sign_extend(exp_bias, 32))[1][:8]
 
         if len(mant_result) >= 48 and mant_result[47] == 1:
             # Shift right by 24
-            mant_result = ALU.op_srl(sign_extend(mant_result[:32], 32), dec_to_bin(24, 32))[1][:23]
+            mant_result = RV32IALU.op_srl(sign_extend(mant_result[:32], 32), dec_to_bin(24, 32))[1][:23]
             # Add 1 to exponent
-            exp_result = ALU.op_add(sign_extend(exp_result, 32), dec_to_bin(1, 32))[1][:8]
+            exp_result = RV32IALU.op_add(sign_extend(exp_result, 32), dec_to_bin(1, 32))[1][:8]
         else:
             # Shift right by 23
-            mant_result = ALU.op_srl(sign_extend(mant_result[:32], 32), dec_to_bin(23, 32))[1][:23]
+            mant_result = RV32IALU.op_srl(sign_extend(mant_result[:32], 32), dec_to_bin(23, 32))[1][:23]
 
         if g.high_level_min(exp_result, EXP_MAX) == EXP_MAX or exp_result == EXP_MAX:
             exp_result = EXP_MAX
             mant_result = MANT_ZERO
         else:
             # underflow
-            exp_check = ALU.op_sub(sign_extend(exp_result, 32), ZERO_32)[1]
+            exp_check = RV32IALU.op_sub(sign_extend(exp_result, 32), ZERO_32)[1]
             if exp_check[31] == 1:  # Negative result means exp_result < 0
                 # Check if exp_result < -23
                 neg_23 = dec_to_bin(-23, 32)
@@ -307,12 +307,12 @@ class FPU:
                     return ZERO_32[:31] + (sign_result,)
                 else:
                     # Denormalized number: shift = 1 - exp_result
-                    shift_amount = ALU.op_sub(dec_to_bin(1, 32), sign_extend(exp_result, 32))[1]
-                    mant_result = ALU.op_srl(sign_extend(mant_result, 32), shift_amount)[1][:23]
+                    shift_amount = RV32IALU.op_sub(dec_to_bin(1, 32), sign_extend(exp_result, 32))[1]
+                    mant_result = RV32IALU.op_srl(sign_extend(mant_result, 32), shift_amount)[1][:23]
                     exp_result = EXP_ZERO
 
         if exp_result != EXP_ZERO:
-            mant_result = ALU.op_and(sign_extend(mant_result, 32), hex_to_bin("7FFFFF", 32))[1][:23]
+            mant_result = RV32IALU.op_and(sign_extend(mant_result, 32), hex_to_bin("7FFFFF", 32))[1][:23]
         
         # Pack result
         result = mant_result + exp_result + (sign_result,)

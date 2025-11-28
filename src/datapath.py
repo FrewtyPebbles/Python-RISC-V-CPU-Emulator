@@ -5,8 +5,8 @@ from memory_unit import MemoryUnit
 from rv32f_register_file import RV32FRegisterFile
 from rv32i_register_file import RV32IRegisterFile
 from instruction_memory import InstructionMemory, PC
-from alu import ALU
-from alu_control import ALUControl
+from rv32i_alu import RV32IALU
+from rv32i_alu_control import RV32IALUControl
 from memory import Bit, Bitx32, bin_str_to_bits, bin_to_dec, bin_to_hex, dec_to_hex, int_to_bits, Bits, repr_bits, shift_left_1, shift_left_2, sign_extend, slice_bits
 from gates import high_level_mux
 from control_unit import (
@@ -47,8 +47,8 @@ class DataPath:
         self.rv32i_register_file = RV32IRegisterFile()
         self.rv32f_register_file = RV32FRegisterFile()
         self.instruction_memory = InstructionMemory()
-        self.alu = ALU()
-        self.alu_control = ALUControl()
+        self.rv32i_alu = RV32IALU()
+        self.alu_control = RV32IALUControl()
         self.fpu = FPU()
         self.fpu_control = FPUControl()
         self.control = ControlUnit()
@@ -64,7 +64,7 @@ class DataPath:
                 print(f"STEP #{step_count} {{")
 
             pc_current = self.pc.value
-            _, pc_plus_4 = self.alu.op_add(pc_current, int_to_bits(4, 32))
+            _, pc_plus_4 = self.rv32i_alu.op_add(pc_current, int_to_bits(4, 32))
 
             # Decode opcode (LSB-first)
             opcode = instruction[0:7]
@@ -125,8 +125,8 @@ class DataPath:
                 )
                 zero_flag, execution_result = self.fpu.update(fpu_op, read_data_1, read_data_2)
             else:
-                # ALU operation
-                # ALU source selection
+                # RV32IALU operation
+                # RV32IALU source selection
                 # Handle LUI/AUIPC specially
                 if opcode == OPCODE_LUI:
                     # imm_u is passthrough
@@ -150,14 +150,14 @@ class DataPath:
                     alu_src1 = read_data_1
                     alu_src2 = high_level_mux(read_data_2, imm_i, self.control.ALUSrc)
 
-                # ALU operation
+                # RV32IALU operation
                 alu_op = self.alu_control.update(
                     self.control.ALUOp,
                     instruction[12:15],
                     instruction[30]
                 )
 
-                zero_flag, execution_result = self.alu.update(alu_op, alu_src1, alu_src2)
+                zero_flag, execution_result = self.rv32i_alu.update(alu_op, alu_src1, alu_src2)
 
             # Memory access
             mem_data = bin_str_to_bits("0"*32)
@@ -198,10 +198,10 @@ class DataPath:
 
             # Branch and jump logic
             branch_taken = self.control.Branch and zero_flag
-            pc_branch = self.alu.op_add(pc_current, imm_b)[1]
+            pc_branch = self.rv32i_alu.op_add(pc_current, imm_b)[1]
             next_pc = high_level_mux(pc_plus_4, pc_branch, branch_taken)
 
-            pc_jump = self.alu.op_add(pc_current, imm_j)[1]
+            pc_jump = self.rv32i_alu.op_add(pc_current, imm_j)[1]
             self.pc.value = high_level_mux(next_pc, pc_jump, self.control.Jump)
 
             if self.config.show_step:
