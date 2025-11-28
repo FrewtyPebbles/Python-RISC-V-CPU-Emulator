@@ -80,57 +80,5 @@ To just assemble an RV32I assembly program use the `--assemble_only` flag:
 ```
 riskv-sim {input_file.asm} --assemble_only -o {outputfile.hex}
 ```
+
 You should then see the output file saved to the location specified by `-o`.
-
-## RV32I Supported Instruction Set
-
-### R-Type
- * ADD
- * SUB
- * AND
- * OR
- * XOR
- * SLL
- * SRL
- * SRA
-
-### I-Type
- * ADDI
- * LW
- * JALR
-
-### B-Type
- * BEQ
- * BNE
-
-### U-Type
- * LUI
- * AUIPC
-
-### S-Type
- * SW
-
-### J-Type
- * JAL
-
-## RV32F Supported Instruction Set
-
-### R-Type
- * fadd.s
- * fsub.s
- * fmul.s
-
-### I-Type
- * flw
-
-### S-Type
- * fsw
-
-## Testing
-
-This project uses the pytest testing framework to perform unit tests to test specific components of the cpu.
-
-## Architecture
-![Diagram for Reference](rv32i_datapath.png)
-
-This was the diagram upon which we based our designs. We used this image to help us identify which components need to be connected where as well as how to process each bit in the instructions. 

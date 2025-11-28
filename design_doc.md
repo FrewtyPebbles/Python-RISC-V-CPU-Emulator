@@ -1,38 +1,48 @@
-## Supported Instruction Set
+# Supported Instruction Set
+
+## RV32I Supported Instruction Set
 
 ### R-Type
- * ADD
- * SUB
- * AND
- * OR
- * XOR
- * SLL
- * SRL
- * SRA
+ * add
+ * sub
+ * and
+ * or
+ * xor
+ * sll
+ * srl
+ * sra
 
 ### I-Type
- * ADDI
- * LW
- * JALR
+ * addi
+ * lw
+ * jalr
 
 ### B-Type
- * BEQ
- * BNE
+ * beq
+ * bne
 
 ### U-Type
- * LUI
- * AUIPC
+ * lui
+ * auipc
 
 ### S-Type
- * SW
+ * sw
 
 ### J-Type
- * JAL
+ * jal
 
-### Floating
- * FADD
- * FSUB
- * FMUL
+## RV32F Supported Instruction Set
+
+### R-Type
+ * fadd.s
+ * fsub.s
+ * fmul.s
+
+### I-Type
+ * flw
+
+### S-Type
+ * fsw
 
 ## Testing
 
