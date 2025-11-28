@@ -15,7 +15,8 @@ def main():
     parser.add_argument("--show_reads", action="store_true", help="Flag to show whenever the Memory Unit is read from.")
     parser.add_argument("--show_writes", action="store_true", help="Flag to show whenever the Memory Unit is written to.")
     parser.add_argument("--show_immediate_values", action="store_true", help="Flag to show all possible immediate values by type after every step.")
-    parser.add_argument("--show_registers", action="store_true", help="Flag to show all registers after every step.")
+    parser.add_argument("--show_rv32i_registers", action="store_true", help="Flag to show all RV32I registers after every step.")
+    parser.add_argument("--show_rv32f_registers", action="store_true", help="Flag to show all RV32F registers after every step.")
     parser.add_argument("-o", "--output", help="Path to output hex file.  This only works when the '--assemble_only' argument flag is included")
     args = parser.parse_args()
 
@@ -31,10 +32,12 @@ def main():
         show_reads:bool = args.show_reads
         show_writes:bool = args.show_writes
         show_immediate_values:bool = args.show_immediate_values
-        show_registers:bool = args.show_registers
+        show_rv32i_registers:bool = args.show_rv32i_registers
+        show_rv32f_registers:bool = args.show_rv32f_registers
         dp = DataPath(
             show_immediate_values,
-            show_registers,
+            show_rv32i_registers,
+            show_rv32f_registers,
             show_steps,
             show_memory,
             show_reads,

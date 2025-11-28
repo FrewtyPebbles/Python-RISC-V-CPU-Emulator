@@ -4,7 +4,7 @@ from encoder_decoder import decoder5x32, one_hot_to_decimal
 
 import os
 
-class RegisterFile:
+class RV32IRegisterFile:
 
     def __init__(self):
         self.registers:list[Register32bit] = [Register32bit() for _ in range(32)]
@@ -12,7 +12,7 @@ class RegisterFile:
     def __repr__(self) -> str:
         display_list:list[str] = []
         for r_n, register in enumerate(self.registers):
-            display_list.append(f"{r_n:>2}x {register}")
+            display_list.append(f"x{r_n:<2} {register}")
         
         lines:list[str] = []
         line_buffer = ""

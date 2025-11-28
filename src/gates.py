@@ -119,3 +119,41 @@ def high_level_mux(in_0:tuple[Bit,...], in_1:tuple[Bit,...], control_bit:Bit) ->
         return in_1
     else:
         return in_0
+    
+def high_level_max(in_0: tuple[Bit,...], in_1: tuple[Bit,...], signed: bool = False) -> tuple[Bit,...]:
+    n = len(in_0)
+    if n != len(in_1):
+        raise ValueError("Tuples must be the same length")
+
+    if signed:
+        sign_0, sign_1 = in_0[-1], in_1[-1]
+        if sign_0 != sign_1:
+            return in_0 if sign_0 == 0 else in_1 # positive is bigger
+
+    for i in reversed(range(n)):
+        if in_0[i] != in_1[i]:
+            if signed and in_0[-1] == 1: # negative numbers
+                return in_0 if in_0[i] < in_1[i] else in_1
+            else:
+                return in_0 if in_0[i] > in_1[i] else in_1
+
+    return in_0 # equal
+
+def high_level_min(in_0: tuple[Bit,...], in_1: tuple[Bit,...], signed: bool = False) -> tuple[Bit,...]:
+    n = len(in_0)
+    if n != len(in_1):
+        raise ValueError("Tuples must be the same length")
+
+    if signed:
+        sign_0, sign_1 = in_0[-1], in_1[-1]
+        if sign_0 != sign_1:
+            return in_0 if sign_0 == 1 else in_1 # negative is smaller
+
+    for i in reversed(range(n)):
+        if in_0[i] != in_1[i]:
+            if signed and in_0[-1] == 1: # negative numbers
+                return in_0 if in_0[i] > in_1[i] else in_1
+            else:
+                return in_0 if in_0[i] < in_1[i] else in_1
+
+    return in_0 # equal

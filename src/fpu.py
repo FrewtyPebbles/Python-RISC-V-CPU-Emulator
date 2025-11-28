@@ -1,142 +1,214 @@
-from memory import Bit, Bitx5, Bitx8, Bitx23, Bitx24, Bitx32, Bitx48, bin_to_dec, dec_to_bin_signed
-from alu import ALU
+from memory import Bit, Bits, Bitx32, Bitx5, bin_to_dec, dec_to_bin, hex_to_bin, shift_left, shift_right, sign_extend
+from rv32i_alu import RV32IALU
 
-class FPU32:
-    alu = ALU()
-    
-    # 127, in a 32-bit binary string
-    BIAS_BITS = (0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,1,1,1,1,1,1,1)
+import fpu_control as fc
+import gates as g
 
-    ONE_32 = (0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,1)
-    ZERO_32 = (0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0)
 
-    EXP_ALL_ONES  = (1, 1, 1, 1, 1, 1, 1, 1)
-    EXP_ALL_ZEROS = (0, 0, 0, 0, 0, 0, 0, 0)
+BIAS = 127
+MANTISSA_BITS = 23
+EXP_BITS = 8
+SIGN_BIT = 1
 
-    def update(self):
+class FPU:
+    def __init__(self):
         pass
-
-    def f_add(self, operand_1:Bitx32, operand_2:Bitx32) -> Bitx32: 
-        sign_1 = operand_1[0] #0 for pos, 1 for neg
-        sign_2 = operand_2[0]
-
-        stored_exp_1 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] + operand_1[1:9] #value of exponent as stored, converted to 32-bit
-        stored_exp_2 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] + operand_2[1:9]
-
-        mantissa_1 = [0,0,0,0,0,0,0,1] + operand_1[9:32] #normalized value of mantissa in 32-bits, including implied '1' bit
-        mantissa_2 = [0,0,0,0,0,0,0,1] + operand_2[9:32]
-
-        true_exp_1 = bin_to_dec(self.alu.op_sub(stored_exp_1, self.BIAS_BITS)[1]) #remove bias and calculate true value of exponent 
-        true_exp_2 = bin_to_dec(self.alu.op_sub(stored_exp_2, self.BIAS_BITS)[1])
-
-        delta_e = abs(true_exp_1 - true_exp_2) #difference between exponents
-
-        res_exp
-
-        if true_exp_1 > true_exp_2: #shift the mantissa of the smaller exponent value delta_e times
-            res_exp = true_exp_1
-            mantissa_2 = self.alu.op_sra(mantissa_2, dec_to_bin_signed(delta_e))[1]
-        else:
-            res_exp = true_exp_2
-            mantissa_1 = self.alu.op_sra(mantissa_1, dec_to_bin_signed(delta_e))[1]
-                
-        res_mantissa
-
-        if sign_1 == sign_2:
-            res_mantissa = self.alu.op_add(mantissa_1, mantissa_2)[1]
-        else:
-            res_mantissa = self.alu.op_sub(mantissa_1, mantissa_2)[1]
-        
-        res_mantissa, res_exp = self.normalize_add(res_mantissa, res_exp) #normalize result to 1.F format
-        res_mantissa = self.round_to_nearest_ties_to_even([0,0,0,0,0,0,0,0] + res_mantissa)
-        
-        val_mantissa_1 = bin_to_dec(mantissa_1)
-        val_mantissa_2 = bin_to_dec(mantissa_2)
-        
-        res_sign = sign_2 if val_mantissa_2>val_mantissa_1 and sign_1 != sign_2 else sign_1 #determining sign
-
-        res:Bitx32 = res_sign + res_exp + res_mantissa #assembling result to be returned
-        return res
-
-
-    def f_mul(self, operand_1:Bitx32, operand_2:Bitx32) -> Bitx32: 
-        sign_1 = operand_1[0] #0 for pos, 1 for neg
-        sign_2 = operand_2[0]
-        res_sign_bit = 0 if sign_1 == sign_2 else 1
-
-        stored_exp_1 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] + operand_1[1:9] #value of exponent as stored, converted to 32-bit
-        stored_exp_2 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] + operand_2[1:9]
-
-        mantissa_1 = [0,0,0,0,0,0,0,1] + operand_1[9:32] #normalized value of mantissa in 32-bits, including implied '1' bit
-        mantissa_2 = [0,0,0,0,0,0,0,1] + operand_2[9:32]
-
-        true_exp_1 = bin_to_dec(self.alu.op_sub(stored_exp_1, self.BIAS_BITS)[1]) #remove bias and calculate true value of exponent 
-        true_exp_2 = bin_to_dec(self.alu.op_sub(stored_exp_2, self.BIAS_BITS)[1])
-        true_res_exp = true_exp_1 + true_exp_2
-
-        raw_res_mantissa:Bitx48 = binary_mul(mantissa_1, mantissa_2)
-        {raw_res_mantissa, true_res_exp} = self.normalize_mul(raw_res_mantissa, stored_res_exp)
-        res_mantissa:Bitx23 = self.round_to_nearest_ties_to_even(raw_res_mantissa)
-        stored_res_exp = self.alu.op_add(dec_to_bin_signed(true_res_exp), self.BIAS_BITS)[1][-8:]
-        
-        res:Bitx32 = [res_sign_bit] + stored_res_exp + res_mantissa
-        return res
     
+    def update(self, operation: Bitx5, read_data_1: Bitx32, read_data_2: Bitx32) -> tuple[Bit, Bitx32]:
+        """
+        Returns Zero bit signal and 32-bit FPU result.
+        Zero bit is 1 for comparison operations that are true.
+        """
+        match operation:
+            case fc.CTRL_FPU_ADD:
+                return self.op_add(read_data_1, read_data_2)
+            case fc.CTRL_FPU_SUB:
+                return self.op_sub(read_data_1, read_data_2)
+            case fc.CTRL_FPU_MUL:
+                return self.op_mul(read_data_1, read_data_2)
+            case _:
+                raise RuntimeError(f"FPU Operation not supported {operation}")
+    
+    @staticmethod
+    def compute_zero(res: Bitx32) -> Bit:
+        return int(all(b == 0 for b in res))
 
-    def normalize_add(self, operand:Bitx32, exponent) -> {Bitx32, int}: 
-        implied_bit = operand[8]
-        if implied_bit:
-            operand = self.alu.op_sra(operand, self.ONE_32)
-            exponent += 1
-        else:
-            while not implied_bit:
-                exponent -= 1
-                operand = self.alu.op_sll(operand, self.ONE_32)
+    @classmethod
+    def extract_fields(cls, bits: Bitx32) -> tuple[int, int, int]:
         
-        return {operand, exponent}
+        sign = bits[31]
+        exp_bits = bits[23:31]
+        mantissa_bits = bits[0:23]
+        
+        exponent = bin_to_dec(exp_bits, signed=False)
+        mantissa = bin_to_dec(mantissa_bits, signed=False)
+        
+        return sign, exponent, mantissa
     
-    def normalize_mul(self, operand:Bitx48, exponent) -> {Bitx32, int}:
-        implied_bit = operand[8]
-        while not implied_bit:
-            operand = self.alu.op_sra(operand, self.ONE_32)
-            exponent += 1
-        return {operand, exponent}
-    
-    def binary_mul(self, operand_1: Bitx23, operand_2: Bitx23) -> Bitx48:
-        res:Bitx48
-        operand_1 = [1] + operand_1
-        operand_2 = [1] + operand_2 #adding implied bit
+    @classmethod
+    def pack_fields(cls, sign: int, exponent: int, mantissa: int) -> Bitx32:
+        # Clamp values
+        sign = 1 if sign else 0
+        exponent = max(0, min(255, exponent))
+        mantissa = mantissa & 0x7FFFFF  # mask and keep only 23 bits
+        
+        # Build 32-bit representation
+        mantissa_bits = dec_to_bin(mantissa, 23)
+        exp_bits = dec_to_bin(exponent, 8)
+        sign_bit = (sign,)
+        
+        result = mantissa_bits + exp_bits + sign_bit
+        return result
 
-        partial_products:list
-        for bit in range(24): #for every bit in operand_2
-            if operand_2[bit]:
-                partial_product = operand_1
-                for _ in bit:
-                    partial_product += [0]
-                partial_products.append(partial_product) #if partial product is significant (not zero), store it
-
-        for item in partial_products:
-            res = self.alu.op_add(res[-32:], item) #adding up partial products
-
-        return res
-    
-    def round_to_nearest_ties_to_even(self, to_be_rounded:Bitx48) -> Bitx23:
-        g_bit = to_be_rounded[24]
-        r_bit = to_be_rounded[25]
-        s_bits = to_be_rounded[26:]
-
-        s_bit
-        for _ in range(len(s_bits)):
-            s_bit = s_bit or s_bits[_]
-
-        if not g_bit:
-            return to_be_rounded[0:22] 
-
-        elif g_bit and (r_bit or s_bit):
-            to_be_rounded = self.alu.op_add([0,0,0,0,0,0,0,0] + to_be_rounded[:24], self.ONE_32)[1]
-            return to_be_rounded[0:22]
-        else:
-            if to_be_rounded[23]:
-                return self.alu.op_add([0,0,0,0,0,0,0,0] + to_be_rounded[:24], self.ONE_32)[1][0:22]
+    @classmethod
+    def op_add(cls, read_data_1: Bitx32, read_data_2: Bitx32) -> tuple[Bit, Bitx32]:
+        sign1, exp1, mant1 = cls.extract_fields(read_data_1)
+        sign2, exp2, mant2 = cls.extract_fields(read_data_2)
+        
+        # Handle special cases: zero, infinity, NaN
+        if exp1 == 0 and mant1 == 0:
+            return cls.compute_zero(read_data_2), read_data_2
+        if exp2 == 0 and mant2 == 0:
+            return cls.compute_zero(read_data_1), read_data_1
+        if exp1 == 255 or exp2 == 255:
+            if exp1 == 255:
+                return cls.compute_zero(read_data_1), read_data_1
             else:
-                return to_be_rounded[0:22]
+                return cls.compute_zero(read_data_2), read_data_2
+        
+        # Implicit 1
+        if exp1 == 0:
+            sig1 = mant1  # Denormalized
+            exp1 = 1
+        else:
+            sig1 = mant1 | (1 << 23)  # Add implicit 1
+        
+        if exp2 == 0:
+            sig2 = mant2  # Denormalized
+            exp2 = 1
+        else:
+            sig2 = mant2 | (1 << 23)  # Add implicit 1
+        
+        # Align exponents
+        if exp1 > exp2:
+            shift = exp1 - exp2
+            sig2 = sig2 >> min(shift, 32)  # Shift right until exp match
+            exp_result = exp1
+        elif exp2 > exp1:
+            shift = exp2 - exp1
+            sig1 = sig1 >> min(shift, 32)
+            exp_result = exp2
+        else:
+            exp_result = exp1
+        
+        # Compute
+        if sign1 == sign2:
+            # Same sign: add
+            sig_result = sig1 + sig2
+            sign_result = sign1
+        else:
+            # subtract
+            if sig1 >= sig2:
+                sig_result = sig1 - sig2
+                sign_result = sign1
+            else:
+                sig_result = sig2 - sig1
+                sign_result = sign2
+        
+        # Handle zero
+        if sig_result == 0:
+            result = cls.pack_fields(0, 0, 0)
+            return cls.compute_zero(result), result
+        
+        # Normalize: shift left until bit 23 is set
+        while sig_result < (1 << 23) and exp_result > 0:
+            sig_result <<= 1
+            exp_result -= 1
+        
+        # Shift right if overflow
+        while sig_result >= (1 << 24):
+            sig_result >>= 1
+            exp_result += 1
+        
+        # Check for overflow
+        if exp_result >= 255:
+            result = cls.pack_fields(sign_result, 255, 0)  # Infinity
+            return cls.compute_zero(result), result
+        
+        # Check for underflow
+        if exp_result <= 0:
+            result = cls.pack_fields(sign_result, 0, 0)  # Zero
+            return cls.compute_zero(result), result
+        
+        # Remove implicit 1 and pack
+        mant_result = sig_result & 0x7FFFFF
+        result = cls.pack_fields(sign_result, exp_result, mant_result)
+        return cls.compute_zero(result), result
+        
+    @classmethod
+    def op_sub(cls, read_data_1: Bitx32, read_data_2: Bitx32) -> tuple[Bit, Bitx32]:
+        # Flip the sign of the second operand
+        sign2, exp2, mant2 = cls.extract_fields(read_data_2)
+        flipped = cls.pack_fields(1 - sign2, exp2, mant2)
+        return cls.op_add(read_data_1, flipped)
+    
+    @classmethod
+    def op_mul(cls, read_data_1: Bitx32, read_data_2: Bitx32) -> tuple[Bit, Bitx32]:
+        sign1, exp1, mant1 = cls.extract_fields(read_data_1)
+        sign2, exp2, mant2 = cls.extract_fields(read_data_2)
+        
+        sign_result = sign1 ^ sign2
+        
+        # Special cases
+        if (exp1 == 0 and mant1 == 0) or (exp2 == 0 and mant2 == 0):
+            # Zero
+            result = cls.pack_fields(sign_result, 0, 0)
+            return cls.compute_zero(result), result
+        
+        if exp1 == 255 or exp2 == 255:
+            # Infinity or NaN
+            result = cls.pack_fields(sign_result, 255, 0)
+            return cls.compute_zero(result), result
+        
+        # Implicit 1 for normalized numbers
+        if exp1 == 0:
+            sig1 = mant1  # Denormalized
+            exp1 = 1
+        else:
+            sig1 = mant1 | (1 << 23)  # Implicit 1
+        
+        if exp2 == 0:
+            sig2 = mant2  # Denormalized
+            exp2 = 1
+        else:
+            sig2 = mant2 | (1 << 23)  # Implicit 1
+        
+        # Multiply significands
+        sig_result = sig1 * sig2
+        
+        # Add exponents and subtract bias
+        exp_result = exp1 + exp2 - BIAS
+        
+        # Normalize
+        if sig_result >= (1 << 47):
+            # Shift right by 24 to get 24-bit significand
+            sig_result >>= 24
+            exp_result += 1
+        else:
+            # Result < 2.0, shift right by 23
+            sig_result >>= 23
+        
+        # Check for overflow
+        if exp_result >= 255:
+            result = cls.pack_fields(sign_result, 255, 0)  # Infinity
+            return cls.compute_zero(result), result
+        
+        # Check for underflow
+        if exp_result <= 0:
+            result = cls.pack_fields(sign_result, 0, 0) # Zero
+            return cls.compute_zero(result), result
+        
+        # Remove implicit 1 and pack result
+        mant_result = sig_result & 0x7FFFFF
+        result = cls.pack_fields(sign_result, exp_result, mant_result)
+        return cls.compute_zero(result), result

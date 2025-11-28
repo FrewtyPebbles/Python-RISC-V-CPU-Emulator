@@ -37,11 +37,20 @@ class Token:
                 return True
         except ValueError:
             return False
+        
+    @staticmethod
+    def is_float_reg(name:str) -> bool:
+        try:
+            reg_num:int = int(name.lstrip("f"))
+            if 0 <= reg_num <= 31:
+                return True
+        except ValueError:
+            return False
 
     @staticmethod
     def reg_to_bin(name:str) -> Bitx5:
         try:
-            reg_num:int = int(name.lstrip("x"))
+            reg_num:int = int(name.lstrip("x").lstrip("f"))
             if 0 <= reg_num <= 31:
                 return dec_to_bin(reg_num, 5)
             else:
@@ -49,9 +58,9 @@ class Token:
         except ValueError:
             raise SyntaxError(f"{name} is not a valid register")
 
-R_type_instructions:set[str] = {"add", "sub", "and", "or", "xor", "sll", "srl", "sra", "slt", "sltu", "mul", "mulh", "mulsu", "mulu", "div","divu", "rem", "remu"}
-I_type_instructions:set[str] = {"addi", "lw", "jalr", "xori", "ori", "andi","slli","srli", "srai", "slti", "sltiu", "lb", "lh", "lw", "lbu", "lhu", "jalr", "ecall", "ebreak"}
-S_type_instructions:set[str] = {"sw", "sb", "sh"}
+R_type_instructions:set[str] = {"add", "sub", "and", "or", "xor", "sll", "srl", "sra", "slt", "sltu", "mul", "mulh", "mulsu", "mulu", "div","divu", "rem", "remu", "fadd.s", "fsub.s", "fmul.s"}
+I_type_instructions:set[str] = {"addi", "lw", "jalr", "xori", "ori", "andi","slli","srli", "srai", "slti", "sltiu", "lb", "lh", "lw", "lbu", "lhu", "jalr", "ecall", "ebreak", "flw"}
+S_type_instructions:set[str] = {"sw", "sb", "sh", "fsw"}
 B_type_instructions:set[str] = {"beq", "bne", "blt", "bge", "bltu", "bgeu"}
 U_type_instructions:set[str] = {"lui", "auipc"}
 J_type_instructions:set[str] = {"jal"}
@@ -183,12 +192,16 @@ class InstructionToken(Token):
     def get_funct7(self) -> Bitx7:
         h7b = lambda s: hex_to_bin(s, 7)
         match self.instruction:
-            case "add"|"xor"|"or"|"and"|"sll"|"srl"|"slt"|"sltu":
+            case "add"|"xor"|"or"|"and"|"sll"|"srl"|"slt"|"sltu"|"fadd.s":
                 return h7b("00")
             case "sub"|"sra":
                 return h7b("20")
             case "mul"|"mulh"|"mulsu"|"mulu"|"div"|"divu"|"rem"|"remu":
                 return h7b("01")
+            case "fsub.s":
+                return h7b("04")
+            case "fmul.s":
+                return h7b("08")
         raise SyntaxError(f"instruction '{self.instruction}' does not have a specified funct7")
             
     def get_funct3(self) -> Bitx3:
@@ -198,7 +211,7 @@ class InstructionToken(Token):
                 return h3b("0")
             case "sll"|"slli"|"lh"|"sh"|"bne"|"mulh":
                 return h3b("1")
-            case "slt"|"slti"|"lw"|"sw"|"mulsu":
+            case "slt"|"slti"|"lw"|"sw"|"mulsu"|"flw"|"fsw":
                 return h3b("2")
             case "sltu"|"sltiu"|"mulu":
                 return h3b("3")
@@ -208,7 +221,7 @@ class InstructionToken(Token):
                 return h3b("5")
             case "or"|"ori"|"bltu"|"rem":
                 return h3b("6")
-            case "and"|"andi"|"bgeu"|"remu":
+            case "and"|"andi"|"bgeu"|"remu"|"fadd.s"|"fsub.s"|"fmul.s":
                 return h3b("7")
         raise SyntaxError(f"instruction '{self.instruction}' does not have a specified funct3")
 
@@ -235,6 +248,12 @@ class InstructionToken(Token):
                 return hex_to_bin("17", 7)
             case "ecall"|"ebreak":
                 return hex_to_bin("73", 7)
+            case "flw":
+                return hex_to_bin("07", 7)
+            case "fsw":
+                return hex_to_bin("27", 7)
+            case "fadd.s"|"fsub.s"|"fmul.s":
+                return hex_to_bin("53", 7)
 
         raise SyntaxError(f"instruction '{self.instruction}' does not have a specified opcode")
     

@@ -11,7 +11,7 @@ CTRL_ALU_SRA = (0,1,1,1)
 CTRL_ALU_SLT = (1,0,0,0)
 CTRL_ALU_SLTU = (1,0,0,1)
 
-class ALUControl:
+class RV32IALUControl:
     def __init__(self):
         pass
 
@@ -50,5 +50,5 @@ class ALUControl:
             if funct3 == (1,1,1):
                 return CTRL_ALU_AND
             
-        raise RuntimeError(f"Unsupported ALUControl input:\nALUOp {ALUOp}\nfunct3{funct3}\nfunct7_bit_30{funct7_bit_30}")
+        raise RuntimeError(f"Unsupported RV32IALUControl input:\nALUOp {ALUOp}\nfunct3{funct3}\nfunct7_bit_30{funct7_bit_30}")
         
