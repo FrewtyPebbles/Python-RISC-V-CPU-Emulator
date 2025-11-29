@@ -4,7 +4,7 @@
 
  - By William Lim and Matthew Barlund
 
-This CPU emulator emulates at the bit level with many low level gates emulated.
+This CPU emulator emulates at the bit level with many low level gates emulated. It includes a subset of both RV32I and RV32F.
 
 ## AI Usage
 
