@@ -13,6 +13,8 @@ from control_unit import (
     OPCODE_AUIPC, OPCODE_FLW, OPCODE_FSW, OPCODE_LUI, OPCODE_STORE, ControlUnit,
     R_TYPE_OPCODES, I_TYPE_OPCODES, S_TYPE_OPCODES, B_TYPE_OPCODES, U_TYPE_OPCODES, J_TYPE_OPCODES
 )
+from rv32m_alu import RV32MALU
+from rv32m_alu_control import RV32MALUControl
 
 class DataPath:
     @dataclass
@@ -48,7 +50,9 @@ class DataPath:
         self.rv32f_register_file = RV32FRegisterFile()
         self.instruction_memory = InstructionMemory()
         self.rv32i_alu = RV32IALU()
-        self.alu_control = RV32IALUControl()
+        self.rv32m_alu = RV32MALU()
+        self.rv32i_alu_control = RV32IALUControl()
+        self.rv32m_alu_control = RV32MALUControl()
         self.fpu = FPU()
         self.fpu_control = FPUControl()
         self.control = ControlUnit()
@@ -124,6 +128,13 @@ class DataPath:
                     rs2
                 )
                 zero_flag, execution_result = self.fpu.update(fpu_op, read_data_1, read_data_2)
+            elif self.control.MulDivOp:
+                # RV32M operation (multiplication/division)
+                malu_op = self.rv32m_alu_control.update(
+                    self.control.ALUOp,
+                    instruction[12:15]
+                )
+                zero_flag, execution_result = self.rv32m_alu.update(malu_op, read_data_1, read_data_2)
             else:
                 # RV32IALU operation
                 # RV32IALU source selection
@@ -151,7 +162,7 @@ class DataPath:
                     alu_src2 = high_level_mux(read_data_2, imm_i, self.control.ALUSrc)
 
                 # RV32IALU operation
-                alu_op = self.alu_control.update(
+                alu_op = self.rv32i_alu_control.update(
                     self.control.ALUOp,
                     instruction[12:15],
                     instruction[30]

@@ -58,7 +58,7 @@ class Token:
         except ValueError:
             raise SyntaxError(f"{name} is not a valid register")
 
-R_type_instructions:set[str] = {"add", "sub", "and", "or", "xor", "sll", "srl", "sra", "slt", "sltu", "mul", "mulh", "mulsu", "mulu", "div","divu", "rem", "remu", "fadd.s", "fsub.s", "fmul.s"}
+R_type_instructions:set[str] = {"add", "sub", "and", "or", "xor", "sll", "srl", "sra", "slt", "sltu", "mul", "mulh", "mulsu", "mulu", "div","divu", "rem", "remu", "fadd.s", "fsub.s", "fmul.s", "mul", "mulh", "mulhsu", "mulhu", "div", "divu", "rem", "remu"}
 I_type_instructions:set[str] = {"addi", "lw", "jalr", "xori", "ori", "andi","slli","srli", "srai", "slti", "sltiu", "lb", "lh", "lw", "lbu", "lhu", "jalr", "ecall", "ebreak", "flw"}
 S_type_instructions:set[str] = {"sw", "sb", "sh", "fsw"}
 B_type_instructions:set[str] = {"beq", "bne", "blt", "bge", "bltu", "bgeu"}
@@ -196,7 +196,7 @@ class InstructionToken(Token):
                 return h7b("00")
             case "sub"|"sra":
                 return h7b("20")
-            case "mul"|"mulh"|"mulsu"|"mulu"|"div"|"divu"|"rem"|"remu":
+            case "mul"|"mulh"|"mulhsu"|"mulhu"|"mulsu"|"mulu"|"div"|"divu"|"rem"|"remu":
                 return h7b("01")
             case "fsub.s":
                 return h7b("04")
@@ -211,9 +211,9 @@ class InstructionToken(Token):
                 return h3b("0")
             case "sll"|"slli"|"lh"|"sh"|"bne"|"mulh":
                 return h3b("1")
-            case "slt"|"slti"|"lw"|"sw"|"mulsu"|"flw"|"fsw":
+            case "slt"|"slti"|"lw"|"sw"|"mulsu"|"flw"|"fsw"|"mulhsu":
                 return h3b("2")
-            case "sltu"|"sltiu"|"mulu":
+            case "sltu"|"sltiu"|"mulu"|"mulhu":
                 return h3b("3")
             case "xor"|"xori"|"lbu"|"blt"|"div":
                 return h3b("4")
@@ -228,7 +228,7 @@ class InstructionToken(Token):
     def get_opcode(self) -> Bitx7:
         match self.instruction:
             case "add"|"sub"|"xor"|"or"|"and"|"sll"|"srl"|"sra"|"slt"|"sltu"\
-                |"mul"|"mulh"|"mulsu"|"mulu"|"div"|"divu"|"rem"|"remu":
+                |"mul"|"mulh"|"mulhsu"|"mulhu"|"mulsu"|"mulu"|"div"|"divu"|"rem"|"remu":
                 return hex_to_bin("33", 7)
             case "addi"|"xori"|"ori"|"andi"|"slli"|"srli"|"srai"|"slti"|"sltiu":
                 return hex_to_bin("13", 7)

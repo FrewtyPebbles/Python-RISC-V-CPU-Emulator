@@ -16,6 +16,9 @@ OPCODE_FP = (1,1,0,0,1,0,1)
 OPCODE_FLW = (1,1,1,0,0,0,0) # Load Float
 OPCODE_FSW = (1,1,1,0,0,1,0) # Store Float
 
+# RV32M funct7 field
+FUNCT7_MULDIV = (1,0,0,0,0,0,0)
+
 R_TYPE_OPCODES = {
     (1, 1, 0, 0, 1, 1, 0),
 }
@@ -109,16 +112,26 @@ class ControlUnit:
         self.FPToInt = 0
         self.IntToFP = 0
         
+        # RV32M Signals
+        self.MulDivOp = 0
 
-    def decode(self, opcode: Bitx7):
+    def decode(self, opcode: Bitx7, funct7: Bitx7 = None):
 
         self.reset()
 
         # R-Type
         if opcode == OPCODE_R_TYPE:
-            self.RegDst = 1
-            self.RegWrite = 1
-            self.ALUOp = (1, 0)   # 10
+            if funct7 == FUNCT7_MULDIV:
+                # M-Extension
+                self.RegDst = 1
+                self.RegWrite = 1
+                self.MulDivOp = 1
+                self.ALUOp = (1, 1)   # 11
+            else:
+                # Regular R-type
+                self.RegDst = 1
+                self.RegWrite = 1
+                self.ALUOp = (1, 0)   # 10
 
         # I-type
         elif opcode == OPCODE_I_TYPE:
