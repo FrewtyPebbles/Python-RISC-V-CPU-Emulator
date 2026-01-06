@@ -2,8 +2,6 @@
 
 # RISC V 32-Bit CPU Emulator
 
- - By William Lim
-
 This CPU emulator emulates at the bit level with many low level gates emulated. It includes a subset of both RV32I and RV32F.
 
 ## Installation
