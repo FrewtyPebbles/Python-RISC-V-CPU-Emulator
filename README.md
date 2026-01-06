@@ -6,10 +6,6 @@
 
 This CPU emulator emulates at the bit level with many low level gates emulated. It includes a subset of both RV32I and RV32F.
 
-## AI Usage
-
- - ChatGPT was used to generate a portion of the unit tests, for generating `.asm` assembly files, and to help understand the bit manipulation in generating the immediate values in the assembler. Gemini was used to help with minor bug fixes and syntax correction. 
-
 ## Installation
 
 First CD into the project directory and make sure pip and build and wheel are up to date:
